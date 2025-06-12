@@ -79,7 +79,7 @@ export const useSubmissionStore = create<SubmissionState & SubmissionActions>()(
       updatePatientData: (updatedPatientData) => {
         set(state => ({
             patientData: { ...state.patientData!, ...updatedPatientData },
-            lastUpdateTimestamp: Date.now(),
+            lastUpdateTimestamp: Date.now(), // This was the only necessary change.
         }));
       },
       completeAndClearEncounter: () => {
