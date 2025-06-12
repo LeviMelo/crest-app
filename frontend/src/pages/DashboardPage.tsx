@@ -1,24 +1,18 @@
 // src/pages/DashboardPage.tsx
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useProjectStore } from '@/stores/projectStore'; // FIX: Changed to a named import
-import useAuthStore, { mockLogin } from '@/stores/authStore';
+import { useProjectStore } from '@/stores/projectStore';
+import useAuthStore from '@/stores/authStore';
 import ProjectCard from '@/components/dashboard/ProjectCard';
 import DashboardGreetingCard from '@/components/dashboard/DashboardGreetingCard';
 import { Button } from '@/components/ui/Button';
 import { PiUsersDuotone } from 'react-icons/pi';
-import { Project } from '@/types'; // FIX: Added import for type safety
+import { Project } from '@/types';
 
 const DashboardPage: React.FC = () => {
   const { availableProjects, fetchAvailableProjects, isLoading } = useProjectStore();
   const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      mockLogin('userLead123');
-    }
-  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -27,14 +21,13 @@ const DashboardPage: React.FC = () => {
   }, [isAuthenticated, fetchAvailableProjects]);
   
   const userProjects = user
-    // FIX: Added explicit types to resolve implicit 'any' errors
     ? availableProjects.filter((p: Project) => p.members.some((m) => m.userId === user.id))
     : [];
 
   const handleCreateNewProject = () => navigate('/create-project');
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 animate-fade-in">
       <DashboardGreetingCard onCreateNewProject={handleCreateNewProject} />
 
       <section>
@@ -44,18 +37,17 @@ const DashboardPage: React.FC = () => {
         )}
         {!isLoading && userProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* FIX: Added explicit type to resolve implicit 'any' error */}
             {userProjects.map((project: Project) => (
               <ProjectCard key={project.id} project={project} />
             ))}
           </div>
         ) : (
           !isLoading && (
-            <div className="text-center py-12 bg-card border-2 border-dashed rounded-lg">
-              <PiUsersDuotone className="text-4xl text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold">No Projects Yet</h3>
-              <p className="text-muted-foreground mt-1 mb-4">Get started by creating your first research project.</p>
-              <Button onClick={handleCreateNewProject}>Create a Project</Button>
+            <div className="text-center py-16 bg-card border-2 border-dashed rounded-xl">
+              <PiUsersDuotone className="text-5xl text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-xl font-semibold">No Projects Yet</h3>
+              <p className="text-muted-foreground mt-2 mb-6">Get started by creating your first research project.</p>
+              <Button onClick={handleCreateNewProject} size="lg" variant="gradient">Create a Project</Button>
             </div>
           )
         )}

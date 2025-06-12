@@ -1,9 +1,11 @@
+// src/components/dashboard/ProjectCard.tsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Project } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { PiArrowRight } from 'react-icons/pi';
+import { PiArrowRight, PiUsersDuotone } from 'react-icons/pi';
+import { cn } from '@/lib/utils';
 
 interface ProjectCardProps {
   project: Project;
@@ -15,14 +17,25 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
     <Card className="flex flex-col h-full transition-shadow hover:shadow-lg">
       <CardHeader>
         <CardTitle>{project.name}</CardTitle>
-        <CardDescription className="line-clamp-2">{project.description}</CardDescription>
+        <CardDescription className="line-clamp-3 min-h-[60px]">{project.description}</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground">Members: {project.members.length}</p>
-      </CardContent>
-      <CardFooter>
-        <Button onClick={() => navigate(`/project/${project.id}`)} className="w-full">
-          View Project <PiArrowRight className="ml-2" />
+      
+      {/* This content area is now a flexible spacer that will grow */}
+      <CardContent className="flex-grow" />
+
+      {/* 
+        THE FIX: 
+        1. mt-auto pushes this entire footer to the bottom of the card.
+        2. flex, items-center, and justify-between align the members count and the button.
+      */}
+      <CardFooter className="mt-auto flex items-center justify-between">
+        <p className="text-sm text-muted-foreground flex items-center">
+            <PiUsersDuotone className="mr-2"/>
+            Members: {project.members.length}
+        </p>
+        <Button onClick={() => navigate(`/project/${project.id}`)} variant="secondary" className="group">
+          View Project
+          <PiArrowRight className="ml-2 transition-transform group-hover:translate-x-1" />
         </Button>
       </CardFooter>
     </Card>

@@ -1,8 +1,8 @@
 // src/components/layout/TopBar.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PiCompassDuotone, PiBellDuotone, PiSunDuotone, PiMoonDuotone, PiSignOutDuotone, PiCaretDownDuotone } from 'react-icons/pi';
-import useAuthStore, { mockLogout, mockLogin } from '@/stores/authStore';
+import { PiCompassDuotone, PiBellDuotone, PiSunDuotone, PiMoonDuotone, PiSignOutDuotone, PiCaretDownDuotone, PiGearDuotone } from 'react-icons/pi';
+import useAuthStore, { mockLogin } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
 
 const TopBar: React.FC = () => {
@@ -13,6 +13,7 @@ const TopBar: React.FC = () => {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Automatically log in the mock user if not authenticated
     if (!isAuthenticated) {
       mockLogin('userLead123');
     }
@@ -21,19 +22,14 @@ const TopBar: React.FC = () => {
   const toggleDarkMode = () => {
     setIsDarkMode(prev => {
       const newMode = !prev;
-      if (newMode) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-      }
+      document.documentElement.classList.toggle('dark', newMode);
+      localStorage.setItem('theme', newMode ? 'dark' : 'light');
       return newMode;
     });
   };
 
-  const handleAuthAction = () => {
-    mockLogout();
+  const handleLogout = () => {
+    useAuthStore.getState().logout();
     navigate('/');
   };
 
@@ -48,14 +44,14 @@ const TopBar: React.FC = () => {
   }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-b border-border" style={{ height: 'var(--header-height, 64px)' }}>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-b" style={{ height: 'var(--header-height)' }}>
       <div className="flex items-center justify-between h-full px-4 sm:px-6 mx-auto">
-        <Link to="/" className="flex items-center gap-2 text-xl font-bold text-foreground">
-          <PiCompassDuotone className="w-7 h-7 text-primary" />
-          <span className="hidden sm:inline">CREST</span>
+        <Link to="/" className="flex items-center gap-2 text-xl font-bold text-foreground transition-transform hover:scale-105">
+          <PiCompassDuotone className="w-8 h-8 text-primary" />
+          <span className="hidden sm:inline text-gradient-primary">CREST</span>
         </Link>
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button variant="ghost" size="icon" aria-label="Notifications">
             <PiBellDuotone className="h-5 w-5" />
           </Button>
@@ -64,16 +60,18 @@ const TopBar: React.FC = () => {
             {isDarkMode ? <PiSunDuotone className="h-5 w-5" /> : <PiMoonDuotone className="h-5 w-5" />}
           </Button>
 
+          <div className="w-px h-6 bg-border mx-2"></div>
+
           {user && (
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2 p-1.5 rounded-full transition-colors hover:bg-accent"
+                className="flex items-center gap-2 p-1 rounded-full transition-colors hover:bg-accent"
               >
                 <img
-                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=10b981&color=fff&size=32&font-size=0.40&bold=true`}
+                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=10b981&color=fff&size=32&font-size=0.40&bold=true&rounded=true`}
                   alt={user.name}
-                  className="w-8 h-8 rounded-full"
+                  className="w-8 h-8"
                 />
                 <div className="hidden sm:flex items-center gap-1">
                   <span className="text-sm font-medium">{user.name}</span>
@@ -82,23 +80,24 @@ const TopBar: React.FC = () => {
               </button>
 
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-popover text-popover-foreground border border-border z-50">
-                   <div className="p-2 border-b border-border">
+                <div className="absolute right-0 mt-2 w-60 rounded-lg shadow-lg bg-popover text-popover-foreground border z-50 p-2 animate-fade-in">
+                   <div className="p-2 border-b">
                       <p className="text-sm font-semibold truncate">{user.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     </div>
-                  <div className="p-1">
+                  <div className="mt-1 space-y-1">
                     <button
                       onClick={() => { setIsUserMenuOpen(false); navigate('/settings'); }}
-                      className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent"
+                      className="w-full text-left flex items-center px-2 py-2 text-sm rounded-md hover:bg-accent"
                     >
+                      <PiGearDuotone className="w-4 h-4 mr-2" />
                       Settings
                     </button>
                     <button
-                      onClick={handleAuthAction}
-                      className="w-full text-left px-2 py-1.5 text-sm rounded-sm text-destructive hover:bg-destructive/10"
+                      onClick={handleLogout}
+                      className="w-full text-left flex items-center px-2 py-2 text-sm rounded-md text-destructive hover:bg-destructive/10"
                     >
-                      <PiSignOutDuotone className="inline w-4 h-4 mr-2" />
+                      <PiSignOutDuotone className="w-4 h-4 mr-2" />
                       Sign out
                     </button>
                   </div>

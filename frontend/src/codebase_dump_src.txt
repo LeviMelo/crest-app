@@ -29,7 +29,9 @@ Project structure for '/c/Users/Galaxy/LEVI/projects/apps/crest-app/frontend/src
   components/ui/TextareaField.tsx
   config/formBuilder.config.ts
   data/index.ts
+  data/intraoperatoriaOptions.ts
   data/mockData.ts
+  data/preAnestesiaOptions.ts
   index.css
   lib/utils.ts
   main.tsx
@@ -48,199 +50,6 @@ Project structure for '/c/Users/Galaxy/LEVI/projects/apps/crest-app/frontend/src
   types/index.ts
   vite-env.d.ts
 
-
-
-###############################################################################
-### FILE: components/layout/TopBar.tsx
-###############################################################################
-// src/components/layout/TopBar.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { PiCompassDuotone, PiBellDuotone, PiSunDuotone, PiMoonDuotone, PiSignOutDuotone, PiCaretDownDuotone } from 'react-icons/pi';
-import useAuthStore, { mockLogout, mockLogin } from '@/stores/authStore';
-import { Button } from '@/components/ui/Button';
-
-const TopBar: React.FC = () => {
-  const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuthStore();
-  const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      mockLogin('userLead123');
-    }
-  }, [isAuthenticated]);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(prev => {
-      const newMode = !prev;
-      if (newMode) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-      }
-      return newMode;
-    });
-  };
-
-  const handleAuthAction = () => {
-    mockLogout();
-    navigate('/');
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setIsUserMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-b border-border" style={{ height: 'var(--header-height, 64px)' }}>
-      <div className="flex items-center justify-between h-full px-4 sm:px-6 mx-auto">
-        <Link to="/" className="flex items-center gap-2 text-xl font-bold text-foreground">
-          <PiCompassDuotone className="w-7 h-7 text-primary" />
-          <span className="hidden sm:inline">CREST</span>
-        </Link>
-
-        <div className="flex items-center gap-2 sm:gap-4">
-          <Button variant="ghost" size="icon" aria-label="Notifications">
-            <PiBellDuotone className="h-5 w-5" />
-          </Button>
-
-          <Button variant="ghost" size="icon" onClick={toggleDarkMode} aria-label="Toggle theme">
-            {isDarkMode ? <PiSunDuotone className="h-5 w-5" /> : <PiMoonDuotone className="h-5 w-5" />}
-          </Button>
-
-          {user && (
-            <div className="relative" ref={userMenuRef}>
-              <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2 p-1.5 rounded-full transition-colors hover:bg-accent"
-              >
-                <img
-                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=10b981&color=fff&size=32&font-size=0.40&bold=true`}
-                  alt={user.name}
-                  className="w-8 h-8 rounded-full"
-                />
-                <div className="hidden sm:flex items-center gap-1">
-                  <span className="text-sm font-medium">{user.name}</span>
-                  <PiCaretDownDuotone className={`w-4 h-4 text-muted-foreground transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
-                </div>
-              </button>
-
-              {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-popover text-popover-foreground border border-border z-50">
-                   <div className="p-2 border-b border-border">
-                      <p className="text-sm font-semibold truncate">{user.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                    </div>
-                  <div className="p-1">
-                    <button
-                      onClick={() => { setIsUserMenuOpen(false); navigate('/settings'); }}
-                      className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent"
-                    >
-                      Settings
-                    </button>
-                    <button
-                      onClick={handleAuthAction}
-                      className="w-full text-left px-2 py-1.5 text-sm rounded-sm text-destructive hover:bg-destructive/10"
-                    >
-                      <PiSignOutDuotone className="inline w-4 h-4 mr-2" />
-                      Sign out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-};
-
-export default TopBar;
-
-
-###############################################################################
-### FILE: stores/projectStore.ts
-###############################################################################
-// src/stores/projectStore.ts
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { Project } from '@/types';
-import { mockProjects } from '@/data/mockData';
-
-interface ProjectState {
-  availableProjects: Project[];
-  activeProjectId: string | null;
-  activeProjectDetails: Project | null;
-  isLoading: boolean;
-  error: string | null;
-}
-
-interface ProjectActions {
-  fetchAvailableProjects: () => Promise<void>;
-  setActiveProject: (projectId: string) => void;
-  clearActiveProject: () => void;
-  addProject: (newProject: Project) => void;
-}
-
-export const useProjectStore = create<ProjectState & ProjectActions>()(
-  persist(
-    (set, get) => ({
-      // Initial state
-      availableProjects: [],
-      activeProjectId: null,
-      activeProjectDetails: null,
-      isLoading: false,
-      error: null,
-
-      // Actions
-      fetchAvailableProjects: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 300)); 
-          set({ availableProjects: mockProjects, isLoading: false });
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : 'Failed to fetch projects';
-          set({ error: errorMessage, isLoading: false });
-          console.error("Error fetching projects:", errorMessage);
-        }
-      },
-      setActiveProject: (projectId) => {
-        const project = get().availableProjects.find(p => p.id === projectId);
-        if (project) {
-          set({ activeProjectId: projectId, activeProjectDetails: project, error: null });
-        } else {
-          set({ error: `Project with ID ${projectId} not found.`, activeProjectId: null, activeProjectDetails: null });
-        }
-      },
-      clearActiveProject: () => {
-        set({ activeProjectId: null, activeProjectDetails: null });
-      },
-      addProject: (newProject) => {
-        set(state => ({
-          availableProjects: [...state.availableProjects, newProject]
-        }));
-      },
-    }),
-    {
-      name: 'crest-project-storage', 
-      storage: createJSONStorage(() => localStorage), 
-      partialize: (state) => ({ activeProjectId: state.activeProjectId }), // Only persist activeProjectId
-    }
-  )
-);
 
 
 ###############################################################################
@@ -298,36 +107,38 @@ export const useProjectStore = create<ProjectState & ProjectActions>()(
 import { Routes, Route } from 'react-router-dom';
 
 // Layout Components
-import TopBar from '@/components/layout/TopBar';
+import TopBar from '@/components/layout/TopBar'; 
 import SidebarLayout from '@/components/layout/SidebarLayout';
 
 // Page Components
 import DashboardPage from '@/pages/DashboardPage';
 import CreateProjectPage from '@/pages/CreateProjectPage';
 import ProjectDetailsPage from '@/pages/ProjectDetailsPage';
-import DataSubmissionPage from '@/pages/DataSubmissionPage'; // <-- NEW
-import FormBuilderPage from '@/pages/FormBuilderPage'; // <-- NEW
+import DataSubmissionPage from '@/pages/DataSubmissionPage';
+import FormBuilderPage from '@/pages/FormBuilderPage';
 import SettingsPage from '@/pages/SettingsPage';
-import NotFoundPage from '@/pages/NotFoundPage'; // <-- FIXED
+import NotFoundPage from '@/pages/NotFoundPage';
 
 function App() {
   return (
     <div className="min-h-screen bg-background">
       <TopBar />
-      <main className="pt-[var(--header-height,64px)]">
+      <main className="pt-[var(--header-height)]">
         <Routes>
           {/* Routes WITHOUT the main sidebar */}
           <Route path="/" element={<DashboardPage />} />
           <Route path="/create-project" element={<CreateProjectPage />} />
           
-          {/* Routes WITH the main sidebar */}
+          {/* Routes WITH the main sidebar (wrapped in the SidebarLayout) */}
           <Route element={<SidebarLayout />}>
             <Route path="/project/:projectId" element={<ProjectDetailsPage />} />
             <Route path="/project/:projectId/submission" element={<DataSubmissionPage />} />
             <Route path="/project/:projectId/builder" element={<FormBuilderPage />} />
-            {/* Add RoleEditor, Search, Notifications routes here later */}
-            <Route path="/settings" element={<SettingsPage />} />
+            {/* Future project-specific routes can be added here */}
           </Route>
+
+          {/* Standalone Settings Page */}
+          <Route path="/settings" element={<SettingsPage />} />
           
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
@@ -361,26 +172,28 @@ const DashboardGreetingCard: React.FC<DashboardGreetingCardProps> = ({ onCreateN
   const { user } = useAuthStore();
 
   return (
-    <section className="relative p-6 sm:p-8 rounded-xl shadow-sm border bg-card overflow-hidden">
-      <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-primary/5 rounded-full filter blur-3xl opacity-50 animate-pulse"></div>
-      <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-primary/10 rounded-full filter blur-3xl opacity-50 animation-delay-2000 animate-pulse"></div>
+    <section className="relative p-8 rounded-xl shadow-lg border bg-card overflow-hidden">
+      {/* Animated background glows */}
+      <div className="absolute top-0 left-0 w-1/2 h-1/2 bg-gradient-to-br from-brand-blue/30 to-transparent rounded-full filter blur-3xl opacity-50 animate-pulse"></div>
+      <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-gradient-to-tl from-brand-purple/30 to-transparent rounded-full filter blur-3xl opacity-50 animation-delay-2000 animate-pulse"></div>
       
       <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex-1">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-            Welcome back, <span className="text-primary">{user?.name || 'User'}</span>!
+            Welcome back, <span className="text-gradient-primary">{user?.name || 'User'}</span>!
           </h1>
-          <p className="mt-2 text-muted-foreground text-lg">
-            This is your launchpad. Manage projects, track progress, and stay updated.
+          <p className="mt-2 text-muted-foreground text-lg max-w-xl">
+            This is your launchpad. Manage projects, track progress, and drive your research forward.
           </p>
         </div>
-        <div className="shrink-0">
+        <div className="shrink-0 mt-4 md:mt-0">
           <Button
             size="lg"
             onClick={onCreateNewProject}
-            className="shadow-lg"
+            variant="gradient"
+            className="animate-pulse-glow"
           >
-            <PiPlusCircleDuotone className="w-5 h-5 mr-2" />
+            <PiPlusCircleDuotone className="w-6 h-6 mr-2" />
             Create New Project
           </Button>
         </div>
@@ -572,27 +385,24 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { useFormBuilderStore } from '@/stores/formBuilderStore';
 import { useForm } from 'react-hook-form';
 import { InputField } from '@/components/ui/InputField';
-import { Checkbox } from '@/components/ui/Checkbox'; // Assuming we create this simple component
+import { Checkbox as UiCheckbox } from '@/components/ui/Checkbox';
 
 const Inspector: React.FC = () => {
   const { selectedFieldId, schema, uiSchema, updateFieldSchema, updateFieldUiOptions } = useFormBuilderStore();
-  const form = useForm();
-  const { register, handleSubmit, watch, reset } = form;
+  
+  const { register, watch, reset } = useForm();
 
   useEffect(() => {
     if (selectedFieldId && schema.properties[selectedFieldId]) {
       const fieldSchema = schema.properties[selectedFieldId];
       const fieldUiOptions = uiSchema[selectedFieldId]?.['ui:options'] || {};
       reset({
-        // Schema properties
         title: fieldSchema.title,
-        // UI options
         ...fieldUiOptions
       });
     }
   }, [selectedFieldId, schema, uiSchema, reset]);
   
-  // Watch for changes and update the store in real-time
   useEffect(() => {
     const subscription = watch((value) => {
         if (!selectedFieldId) return;
@@ -602,7 +412,6 @@ const Inspector: React.FC = () => {
     });
     return () => subscription.unsubscribe();
   }, [watch, selectedFieldId, updateFieldSchema, updateFieldUiOptions]);
-
 
   if (!selectedFieldId) {
     return (
@@ -622,32 +431,25 @@ const Inspector: React.FC = () => {
       </CardHeader>
       <CardContent>
         <form className="space-y-4">
-            <InputField label="Label" {...register('title')} />
+            <InputField id="inspector-title" label="Label" {...register('title')} />
             
-            {/* Number-specific Inspector */}
             {selectedType === 'number' && (
                 <div className="space-y-2 pt-4 border-t">
                     <h4 className="text-sm font-medium">Number Options</h4>
-                    <InputField label="Unit" placeholder="e.g., mmHg, kg" {...register('unit')} />
+                    <InputField id="inspector-unit" label="Unit" placeholder="e.g., mmHg, kg" {...register('unit')} />
                     <label className="text-sm font-medium">Enabled Inputs</label>
                     <div className="space-y-1">
-                        <label className="flex items-center gap-2"><Checkbox {...register('enabledInputs')} value="inputBox" /> Standard Input Box</label>
-                        <label className="flex items-center gap-2"><Checkbox {...register('enabledInputs')} value="slider" /> Slider</label>
-                        <label className="flex items-center gap-2"><Checkbox {...register('enabledInputs')} value="stepper" /> Stepper Buttons</label>
+                        <label className="flex items-center gap-2"><UiCheckbox {...register('enabledInputs')} value="inputBox" /> Standard Input Box</label>
+                        <label className="flex items-center gap-2"><UiCheckbox {...register('enabledInputs')} value="slider" /> Slider</label>
+                        <label className="flex items-center gap-2"><UiCheckbox {...register('enabledInputs')} value="stepper" /> Stepper Buttons</label>
                     </div>
                 </div>
             )}
-            {/* Add inspectors for other types here */}
-
         </form>
       </CardContent>
     </Card>
   );
 };
-// Simple Checkbox for the form
-const Checkbox = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(({className, ...props}, ref) => {
-    return ( <input type="checkbox" className={cn("h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary", className)} ref={ref} {...props} /> );
-});
 
 export default Inspector;
 
@@ -658,10 +460,10 @@ export default Inspector;
 // src/components/form-builder/JsonEditor.tsx
 import React, { useState } from 'react';
 import Editor from 'react-simple-code-editor';
-import { highlight, languages } from 'prismjs/components/prism-core';
-import 'prismjs/components/prism-clike';
+import 'prismjs';
 import 'prismjs/components/prism-json';
-import 'prismjs/themes/prism-tomorrow.css'; // Using a dark theme for the editor
+import { highlight, languages } from 'prismjs/components/prism-core';
+import 'prismjs/themes/prism-tomorrow.css'; 
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 
 interface JsonEditorProps {
@@ -941,7 +743,7 @@ export default NumberWidget;
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PiCaretUpDownDuotone, PiGaugeDuotone, PiCheck, PiPlus } from 'react-icons/pi';
-import useProjectStore from '@/stores/projectStore';
+import { useProjectStore } from '@/stores/projectStore';
 import useAuthStore from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -1040,7 +842,7 @@ export default ContextSwitcher;
 ###############################################################################
 // src/components/layout/NavMenu.tsx
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { IconType } from 'react-icons';
 import { cn } from '@/lib/utils';
 
@@ -1051,37 +853,49 @@ export interface NavItem {
   icon?: IconType;
   isHeader?: boolean;
   children?: NavItem[];
+  roles?: string[];
 }
 
 const NavMenu: React.FC<{ items: NavItem[] }> = ({ items }) => {
+  const location = useLocation();
+
+  const isChildActive = (item: NavItem): boolean => {
+    if (!item.children) return false;
+    return item.children.some(child => 
+      child.path === location.pathname || (child.children && isChildActive(child))
+    );
+  };
+
   return (
     <nav>
       <ul className="space-y-1">
         {items.map((item) => (
           <li key={item.id}>
             {item.isHeader ? (
-              <h3 className="px-3 pt-4 pb-1 text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+              <h3 className={cn("px-3 pt-4 pb-1 text-xs font-semibold uppercase text-muted-foreground/80 tracking-wider", isChildActive(item) && 'text-primary')}>
                 {item.label}
               </h3>
             ) : (
               item.path && (
                 <NavLink
                   to={item.path}
-                  end={item.path === '/' || item.path.includes('/project/')} // 'end' is crucial for parent routes
+                  end={item.path === '/'}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center p-2 text-foreground rounded-lg hover:bg-accent transition-colors',
-                      isActive ? 'bg-accent font-semibold' : 'font-normal'
+                      'flex items-center p-2.5 text-sm rounded-lg hover:bg-accent transition-all duration-200 group relative',
+                      isActive 
+                        ? 'font-semibold text-primary bg-primary/10 dark:shadow-glow-primary-md' 
+                        : 'font-medium text-foreground/80 hover:text-foreground'
                     )
                   }
                 >
-                  {item.icon && <item.icon className="w-5 h-5 mr-3 text-muted-foreground" />}
+                  {item.icon && <item.icon className="w-5 h-5 mr-3 shrink-0" />}
                   <span className="flex-1">{item.label}</span>
                 </NavLink>
               )
             )}
             {item.children && (
-              <ul className="pl-4 mt-1 space-y-1">
+              <ul className="pl-4 mt-1 space-y-1 border-l-2 border-border/50 ml-3">
                 <NavMenu items={item.children} />
               </ul>
             )}
@@ -1104,8 +918,11 @@ import { useParams } from 'react-router-dom';
 import ContextSwitcher from '@/components/layout/ContextSwitcher';
 import NavMenu, { NavItem } from '@/components/layout/NavMenu';
 import useAuthStore from '@/stores/authStore';
-import useProjectStore from '@/stores/projectStore';
-import { PiGaugeDuotone, PiGearDuotone, PiHouseDuotone, PiListChecksDuotone, PiSquaresFourDuotone, PiUsersDuotone, PiMagnifyingGlassDuotone, PiBellDuotone } from 'react-icons/pi';
+import { useProjectStore } from '@/stores/projectStore';
+import { 
+    PiGaugeDuotone, PiGearDuotone, PiHouseDuotone, PiListChecksDuotone, 
+    PiSquaresFourDuotone, PiUsersDuotone, PiMagnifyingGlassDuotone, PiBellDuotone 
+} from 'react-icons/pi';
 
 const Sidebar: React.FC = () => {
   const { projectId } = useParams();
@@ -1124,8 +941,12 @@ const Sidebar: React.FC = () => {
 
 
   const getNavItems = (): NavItem[] => {
-    if (projectId) {
-      // Base project navigation structure
+      // Base navigation structure
+      const globalNav: NavItem[] = [
+        { id: 'dashboard', path: `/`, label: 'Dashboard', icon: PiGaugeDuotone },
+        { id: 'settings', path: '/settings', label: 'Settings', icon: PiGearDuotone },
+      ];
+
       const projectNavStructure: NavItem[] = [
         { id: 'overview', path: `/project/${projectId}`, label: 'Project Overview', icon: PiHouseDuotone },
         {
@@ -1149,34 +970,27 @@ const Sidebar: React.FC = () => {
           const hasRole = !item.roles || item.roles.some(role => activeProjectRoles.includes(role));
           
           if (hasRole) {
+            const newItem = {...item};
             if (item.children) {
-              const filteredChildren = filterByRole(item.children);
+              newItem.children = filterByRole(item.children);
               // Only include headers if they have visible children
-              if (filteredChildren.length > 0) {
-                acc.push({ ...item, children: filteredChildren });
+              if (newItem.children.length > 0) {
+                acc.push(newItem);
               }
             } else {
-              acc.push(item);
+              acc.push(newItem);
             }
           }
           return acc;
         }, []);
       };
-
-      return filterByRole(projectNavStructure);
-
-    } else {
-      // Global Context Navigation (Dashboard, Settings)
-      return [
-        { id: 'dashboard', path: `/`, label: 'Dashboard', icon: PiGaugeDuotone },
-        { id: 'settings', path: '/settings', label: 'Settings', icon: PiGearDuotone },
-      ];
-    }
+      
+      return projectId ? filterByRole(projectNavStructure) : globalNav;
   };
 
   return (
-    <aside className="fixed top-[var(--header-height)] left-0 z-30 w-64 h-screen border-r border-border bg-card transition-transform -translate-x-full lg:translate-x-0">
-      <div className="h-full px-3 py-4 overflow-y-auto">
+    <aside className="fixed top-[var(--header-height)] left-0 z-40 w-64 h-screen border-r bg-card/70 backdrop-blur-xl transition-transform -translate-x-full lg:translate-x-0">
+      <div className="h-full px-3 py-4 overflow-y-auto scrollbar-hide">
         <ContextSwitcher />
         <NavMenu items={getNavItems()} />
       </div>
@@ -1209,6 +1023,125 @@ const SidebarLayout: React.FC = () => {
 };
 
 export default SidebarLayout;
+
+
+###############################################################################
+### FILE: components/layout/TopBar.tsx
+###############################################################################
+// src/components/layout/TopBar.tsx
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { PiCompassDuotone, PiBellDuotone, PiSunDuotone, PiMoonDuotone, PiSignOutDuotone, PiCaretDownDuotone, PiGearDuotone } from 'react-icons/pi';
+import useAuthStore, { mockLogin } from '@/stores/authStore';
+import { Button } from '@/components/ui/Button';
+
+const TopBar: React.FC = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuthStore();
+  const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Automatically log in the mock user if not authenticated
+    if (!isAuthenticated) {
+      mockLogin('userLead123');
+    }
+  }, [isAuthenticated]);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(prev => {
+      const newMode = !prev;
+      document.documentElement.classList.toggle('dark', newMode);
+      localStorage.setItem('theme', newMode ? 'dark' : 'light');
+      return newMode;
+    });
+  };
+
+  const handleLogout = () => {
+    useAuthStore.getState().logout();
+    navigate('/');
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-b" style={{ height: 'var(--header-height)' }}>
+      <div className="flex items-center justify-between h-full px-4 sm:px-6 mx-auto">
+        <Link to="/" className="flex items-center gap-2 text-xl font-bold text-foreground transition-transform hover:scale-105">
+          <PiCompassDuotone className="w-8 h-8 text-primary" />
+          <span className="hidden sm:inline text-gradient-primary">CREST</span>
+        </Link>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button variant="ghost" size="icon" aria-label="Notifications">
+            <PiBellDuotone className="h-5 w-5" />
+          </Button>
+
+          <Button variant="ghost" size="icon" onClick={toggleDarkMode} aria-label="Toggle theme">
+            {isDarkMode ? <PiSunDuotone className="h-5 w-5" /> : <PiMoonDuotone className="h-5 w-5" />}
+          </Button>
+
+          <div className="w-px h-6 bg-border mx-2"></div>
+
+          {user && (
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-2 p-1 rounded-full transition-colors hover:bg-accent"
+              >
+                <img
+                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=10b981&color=fff&size=32&font-size=0.40&bold=true&rounded=true`}
+                  alt={user.name}
+                  className="w-8 h-8"
+                />
+                <div className="hidden sm:flex items-center gap-1">
+                  <span className="text-sm font-medium">{user.name}</span>
+                  <PiCaretDownDuotone className={`w-4 h-4 text-muted-foreground transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-60 rounded-lg shadow-lg bg-popover text-popover-foreground border z-50 p-2 animate-fade-in">
+                   <div className="p-2 border-b">
+                      <p className="text-sm font-semibold truncate">{user.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                  <div className="mt-1 space-y-1">
+                    <button
+                      onClick={() => { setIsUserMenuOpen(false); navigate('/settings'); }}
+                      className="w-full text-left flex items-center px-2 py-2 text-sm rounded-md hover:bg-accent"
+                    >
+                      <PiGearDuotone className="w-4 h-4 mr-2" />
+                      Settings
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left flex items-center px-2 py-2 text-sm rounded-md text-destructive hover:bg-destructive/10"
+                    >
+                      <PiSignOutDuotone className="w-4 h-4 mr-2" />
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default TopBar;
 
 
 ###############################################################################
@@ -1253,21 +1186,22 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 transform-gpu hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] relative overflow-hidden",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg dark:shadow-primary/30",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-lg",
+        outline: "border border-input bg-background/50 hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        gradient: "bg-gradient-to-r from-brand-blue via-brand-indigo to-brand-purple text-white shadow-lg dark:shadow-glow-blue hover:shadow-xl transition-shadow",
       },
       size: {
         default: "h-10 px-4 py-2",
         sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
+        lg: "h-11 rounded-md px-8 text-base",
         icon: "h-10 w-10",
       },
     },
@@ -1281,7 +1215,7 @@ const buttonVariants = cva(
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
-  asChild?: boolean
+  asChild?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -1292,7 +1226,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
-      />
+      >
+        {props.children}
+        {variant === 'gradient' && (
+          <div className="absolute inset-0 h-full w-full -translate-x-full transform-gpu-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0-translate-x-full-z-0 group-hover:translate-x-0 transition-transform duration-500 ease-in-out">
+            <div className="h-full w-full bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+          </div>
+        )}
+      </Comp>
     )
   }
 )
@@ -1308,12 +1249,21 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
+  <div 
+    ref={ref} 
+    className={cn(
+        "rounded-xl border bg-card/70 text-card-foreground shadow-sm backdrop-blur-sm",
+        // Subtle gradient overlay for depth
+        "relative after:absolute after:inset-0 after:rounded-xl after:bg-gradient-to-br after:from-primary/5 after:to-transparent after:opacity-20 dark:after:from-primary/10",
+        className
+        )} 
+    {...props} 
+  />
 ));
 Card.displayName = "Card"
 
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
+  <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6 z-10 relative", className)} {...props} />
 ));
 CardHeader.displayName = "CardHeader"
 
@@ -1328,12 +1278,12 @@ const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttribu
 CardDescription.displayName = "CardDescription"
 
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+  <div ref={ref} className={cn("p-6 pt-0 z-10 relative", className)} {...props} />
 ));
 CardContent.displayName = "CardContent"
 
 const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("flex items-center p-6 pt-0", className)} {...props} />
+  <div ref={ref} className={cn("flex items-center p-6 pt-0 z-10 relative", className)} {...props} />
 ));
 CardFooter.displayName = "CardFooter"
 
@@ -1630,7 +1580,7 @@ export { TextareaField, Textarea }
 ### FILE: config/formBuilder.config.ts
 ###############################################################################
 // src/config/formBuilder.config.ts
-import { PiTextT, PiNumberCircleOne, PiToggleLeft, PiListDashes, PiListNumbers, PiCalendar, PiUserFocus } from 'react-icons/pi';
+import { PiTextT, PiNumberCircleOne, PiToggleLeft, PiListDashes, PiListNumbers } from 'react-icons/pi';
 
 export type FieldPrimitiveType = 'text' | 'number' | 'boolean' | 'singleChoice' | 'multipleChoice' | 'date';
 
@@ -1729,7 +1679,6 @@ export const FORM_BUILDER_PRIMITIVES: FieldPrimitive[] = [
       },
     },
   },
-  // We will add 'Field Group' as a special case later, as it's a structural element.
 ];
 
 
@@ -1739,6 +1688,18 @@ export const FORM_BUILDER_PRIMITIVES: FieldPrimitive[] = [
 export * from './mockData';
 export * as preAnestesiaOptions from './preAnestesiaOptions';
 export * as intraoperatoriaOptions from './intraoperatoriaOptions';
+
+
+###############################################################################
+### FILE: data/intraoperatoriaOptions.ts
+###############################################################################
+// src/data/intraoperatoriaOptions.ts
+export interface OptionInfo { value: string; label: string; }
+
+export const procedimentoOptions: OptionInfo[] = [
+    { value: 'broncoscopia_flexivel', label: 'Broncoscopia flexível' },
+    { value: 'broncoscopia_rigida', label: 'Broncoscopia rígida' },
+];
 
 
 ###############################################################################
@@ -1771,6 +1732,22 @@ export const mockProjects: Project[] = [
 
 
 ###############################################################################
+### FILE: data/preAnestesiaOptions.ts
+###############################################################################
+// src/data/preAnestesiaOptions.ts
+import { AutocompleteOption } from '@/types';
+
+export const commonDiagnoses: AutocompleteOption[] = [
+  { value: 'laringomalacia', label: 'Laringomalácia', icd10: 'J38.5' },
+  { value: 'estenose_subglotica_congenita', label: 'Estenose subglótica congênita', icd10: 'Q31.1' },
+];
+export const allDiagnosesSample: AutocompleteOption[] = [
+  ...commonDiagnoses,
+  { value: 'estenose_traqueal_pos_intubacao', label: 'Estenose traqueal pós intubação', icd10: 'J95.5' }, 
+];
+
+
+###############################################################################
 ### FILE: index.css
 ###############################################################################
 @tailwind base;
@@ -1780,48 +1757,51 @@ export const mockProjects: Project[] = [
 @layer base {
   :root {
     --header-height: 64px;
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
+    --radius: 0.75rem;
+
+    /* Light Mode Palette */
+    --background: 220 20% 98%;
+    --foreground: 224 71.4% 4.1%;
+    --card: 255 100% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+    --popover: 255 100% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
+    --secondary: 220 14.3% 95.9%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 220 14.3% 95.9%;
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 221.2 83.2% 53.3%;
   }
- 
+
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    /* Dark Mode Palette - Richer, deeper colors */
+    --background: 225 25% 6%;
+    --foreground: 210 20% 98%;
+    --card: 225 25% 9%;
+    --card-foreground: 210 20% 98%;
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 218 11% 65%;
+    --accent: 215 28% 17%;
+    --accent-foreground: 210 20% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 28% 17%;
+    --input: 215 28% 17%;
+    --ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -1832,7 +1812,34 @@ export const mockProjects: Project[] = [
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+  
+  /* Sophisticated Static Gradient Mesh Background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100vw; height: 100vh;
+    background: 
+      radial-gradient(ellipse at 10% 15%, hsl(var(--primary) / 0.08), transparent 50%),
+      radial-gradient(ellipse at 80% 20%, hsl(270 90% 55% / 0.08), transparent 50%),
+      radial-gradient(ellipse at 20% 80%, hsl(200 90% 55% / 0.08), transparent 50%),
+      radial-gradient(ellipse at 90% 85%, hsl(var(--primary) / 0.08), transparent 50%);
+    z-index: -1;
+    pointer-events: none;
+  }
+}
+
+/* Utilities for gradient text effects */
+@layer utilities {
+    .text-gradient-primary {
+      @apply bg-gradient-to-r from-brand-blue via-brand-indigo to-brand-purple text-transparent bg-clip-text;
+    }
+    .text-gradient-cool {
+      @apply bg-gradient-to-r from-brand-emerald via-brand-teal to-brand-cyan text-transparent bg-clip-text;
+    }
 }
 
 
@@ -1977,23 +1984,18 @@ export default CreateProjectPage;
 // src/pages/DashboardPage.tsx
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useProjectStore from '@/stores/projectStore';
-import useAuthStore, { mockLogin } from '@/stores/authStore';
+import { useProjectStore } from '@/stores/projectStore';
+import useAuthStore from '@/stores/authStore';
 import ProjectCard from '@/components/dashboard/ProjectCard';
 import DashboardGreetingCard from '@/components/dashboard/DashboardGreetingCard';
 import { Button } from '@/components/ui/Button';
 import { PiUsersDuotone } from 'react-icons/pi';
+import { Project } from '@/types';
 
 const DashboardPage: React.FC = () => {
   const { availableProjects, fetchAvailableProjects, isLoading } = useProjectStore();
   const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      mockLogin('userLead123');
-    }
-  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -2002,13 +2004,13 @@ const DashboardPage: React.FC = () => {
   }, [isAuthenticated, fetchAvailableProjects]);
   
   const userProjects = user
-    ? availableProjects.filter(p => p.members.some(m => m.userId === user.id))
+    ? availableProjects.filter((p: Project) => p.members.some((m) => m.userId === user.id))
     : [];
 
   const handleCreateNewProject = () => navigate('/create-project');
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 animate-fade-in">
       <DashboardGreetingCard onCreateNewProject={handleCreateNewProject} />
 
       <section>
@@ -2018,17 +2020,17 @@ const DashboardPage: React.FC = () => {
         )}
         {!isLoading && userProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {userProjects.map((project) => (
+            {userProjects.map((project: Project) => (
               <ProjectCard key={project.id} project={project} />
             ))}
           </div>
         ) : (
           !isLoading && (
-            <div className="text-center py-12 bg-card border-2 border-dashed rounded-lg">
-              <PiUsersDuotone className="text-4xl text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold">No Projects Yet</h3>
-              <p className="text-muted-foreground mt-1 mb-4">Get started by creating your first research project.</p>
-              <Button onClick={handleCreateNewProject}>Create a Project</Button>
+            <div className="text-center py-16 bg-card border-2 border-dashed rounded-xl">
+              <PiUsersDuotone className="text-5xl text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-xl font-semibold">No Projects Yet</h3>
+              <p className="text-muted-foreground mt-2 mb-6">Get started by creating your first research project.</p>
+              <Button onClick={handleCreateNewProject} size="lg" variant="gradient">Create a Project</Button>
             </div>
           )
         )}
@@ -2044,7 +2046,7 @@ export default DashboardPage;
 ### FILE: pages/DataSubmissionPage.tsx
 ###############################################################################
 // src/pages/DataSubmissionPage.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react'; // FIX: Removed unused 'useCallback'
 import { useSubmissionStore, FormDefinition } from '@/stores/submissionStore';
 import { useFormBuilderStore } from '@/stores/formBuilderStore';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -2107,8 +2109,6 @@ const DataSubmissionPage: React.FC = () => {
         formSequence,
     } = useSubmissionStore();
 
-    // In a real app, form schemas would be fetched based on the formSequence definition.
-    // For this demo, we'll use the single form available from the builder store.
     const { schema, uiSchema, fieldOrder } = useFormBuilderStore();
     const MOCK_FORM_SEQUENCE: FormDefinition[] = [{ 
         key: 'form_from_builder', 
@@ -2118,7 +2118,6 @@ const DataSubmissionPage: React.FC = () => {
         uiSchemaPath: 'builder',
     }];
 
-    // Local state for the form data of the *current* step
     const [currentStepFormData, setCurrentStepFormData] = useState({});
 
     useEffect(() => {
@@ -2180,8 +2179,8 @@ const DataSubmissionPage: React.FC = () => {
                 <CardHeader><CardTitle>{currentFormDef.name}</CardTitle></CardHeader>
                 <CardContent>
                     <DynamicFormRenderer
-                        schema={schema} // Using builder schema for demo
-                        uiSchema={uiSchema} // Using builder uiSchema for demo
+                        schema={schema}
+                        uiSchema={uiSchema}
                         formData={currentStepFormData}
                         onFormDataChange={setCurrentStepFormData}
                         fieldOrder={fieldOrder}
@@ -2256,62 +2255,73 @@ export default DataSubmissionPage;
 ###############################################################################
 ### FILE: pages/FormBuilderPage.tsx
 ###############################################################################
-// src/pages/FormBuilderPage.tsx
-import React, { useState } from 'react';
-import { PageHeader } from '@/components/ui/PageHeader';
+// src/pages/DashboardPage.tsx
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useProjectStore } from '@/stores/projectStore'; // <-- FIX: Named import
+import useAuthStore, { mockLogin } from '@/stores/authStore';
+import ProjectCard from '@/components/dashboard/ProjectCard';
+import DashboardGreetingCard from '@/components/dashboard/DashboardGreetingCard';
 import { Button } from '@/components/ui/Button';
-import Toolbox from '@/components/form-builder/Toolbox';
-import Canvas from '@/components/form-builder/Canvas';
-import Inspector from '@/components/form-builder/Inspector';
-import JsonEditor from '@/components/form-builder/JsonEditor';
-import { useFormBuilderStore } from '@/stores/formBuilderStore';
-import { PiSquaresFourDuotone, PiCode } from 'react-icons/pi';
+import { PiUsersDuotone } from 'react-icons/pi';
+import { Project } from '@/types'; // <-- FIX: Import Project type
 
-type ViewMode = 'visual' | 'json';
+const DashboardPage: React.FC = () => {
+  const { availableProjects, fetchAvailableProjects, isLoading } = useProjectStore();
+  const { user, isAuthenticated } = useAuthStore();
+  const navigate = useNavigate();
 
-const FormBuilderPage: React.FC = () => {
-  const [viewMode, setViewMode] = useState<ViewMode>('visual');
-  const { schema, uiSchema, setRawSchema, setRawUiSchema } = useFormBuilderStore();
+  useEffect(() => {
+    if (!isAuthenticated) {
+      mockLogin('userLead123');
+    }
+  }, [isAuthenticated]);
 
-  const handleSchemaChange = (value: string) => setRawSchema(value);
-  const handleUiSchemaChange = (value: string) => setRawUiSchema(value);
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAvailableProjects();
+    }
+  }, [isAuthenticated, fetchAvailableProjects]);
+  
+  const userProjects = user
+    // FIX: Added type annotation for 'p' and 'm'
+    ? availableProjects.filter((p: Project) => p.members.some(m => m.userId === user.id))
+    : [];
 
-  const visualView = (
-    <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-hidden">
-      <div className="lg:col-span-3 xl:col-span-2 h-full overflow-y-auto"><Toolbox /></div>
-      <div className="lg:col-span-6 xl:col-span-7 h-full overflow-y-auto"><Canvas /></div>
-      <div className="lg:col-span-3 xl:col-span-3 h-full overflow-y-auto"><Inspector /></div>
-    </div>
-  );
-
-  const jsonView = (
-    <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-hidden">
-      <JsonEditor title="Schema" jsonString={JSON.stringify(schema, null, 2)} onJsonChange={handleSchemaChange} />
-      <JsonEditor title="UI Schema" jsonString={JSON.stringify(uiSchema, null, 2)} onJsonChange={handleUiSchemaChange} />
-    </div>
-  );
+  const handleCreateNewProject = () => navigate('/create-project');
 
   return (
-    <div className="flex flex-col h-[calc(100vh-var(--header-height,64px)-3rem)] space-y-4">
-      <PageHeader
-        title="Form Builder"
-        subtitle="Design research forms with a live preview."
-        icon={PiSquaresFourDuotone}
-        gradient="accent"
-        className="flex-shrink-0 mb-0"
-      >
-        <Button variant="outline" onClick={() => setViewMode(viewMode === 'visual' ? 'json' : 'visual')}>
-          <PiCode className="mr-2" />
-          {viewMode === 'visual' ? 'JSON Mode' : 'Visual Mode'}
-        </Button>
-      </PageHeader>
-      
-      {viewMode === 'visual' ? visualView : jsonView}
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+      <DashboardGreetingCard onCreateNewProject={handleCreateNewProject} />
+
+      <section>
+        <h2 className="text-2xl font-bold text-foreground mb-4">My Projects</h2>
+        {isLoading && userProjects.length === 0 && (
+            <p className="text-muted-foreground">Loading projects...</p>
+        )}
+        {!isLoading && userProjects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* FIX: Added type annotation for 'project' */}
+            {userProjects.map((project: Project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        ) : (
+          !isLoading && (
+            <div className="text-center py-12 bg-card border-2 border-dashed rounded-lg">
+              <PiUsersDuotone className="text-4xl text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold">No Projects Yet</h3>
+              <p className="text-muted-foreground mt-1 mb-4">Get started by creating your first research project.</p>
+              <Button onClick={handleCreateNewProject}>Create a Project</Button>
+            </div>
+          )
+        )}
+      </section>
     </div>
   );
 };
 
-export default FormBuilderPage;
+export default DashboardPage;
 
 
 ###############################################################################
@@ -2344,11 +2354,12 @@ export default NotFoundPage;
 // src/pages/ProjectDetailsPage.tsx
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import useProjectStore from '@/stores/projectStore';
+import { useProjectStore } from '@/stores/projectStore'; // <-- FIX: Named import
 import InfoWidget from '@/components/project/InfoWidget';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { PiUsersDuotone, PiFlagDuotone, PiHourglassSimpleDuotone, PiChartBarDuotone, PiFileTextDuotone } from 'react-icons/pi';
 import { Button } from '@/components/ui/Button';
+import { ProjectMember } from '@/types'; // <-- FIX: Import ProjectMember type
 
 const ProjectDetailsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -2414,7 +2425,8 @@ const ProjectDetailsPage: React.FC = () => {
         <div className="lg:col-span-1">
           <InfoWidget title="Team Members" icon={PiUsersDuotone}>
             <div className="space-y-3">
-              {members.map(member => (
+              {/* FIX: Added type annotation for 'member' */}
+              {members.map((member: ProjectMember) => (
                 <div key={member.userId} className="flex items-center">
                   <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.userId)}&background=random&size=32&color=fff&font-size=0.40&bold=true`} alt={member.userId} className="w-8 h-8 rounded-full mr-3"/>
                   <div>
@@ -2675,6 +2687,79 @@ export interface User {
 
 
 ###############################################################################
+### FILE: stores/projectStore.ts
+###############################################################################
+// src/stores/projectStore.ts
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { Project } from '@/types';
+import { mockProjects } from '@/data/mockData';
+
+interface ProjectState {
+  availableProjects: Project[];
+  activeProjectId: string | null;
+  activeProjectDetails: Project | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+interface ProjectActions {
+  fetchAvailableProjects: () => Promise<void>;
+  setActiveProject: (projectId: string) => void;
+  clearActiveProject: () => void;
+  addProject: (newProject: Project) => void;
+}
+
+export const useProjectStore = create<ProjectState & ProjectActions>()(
+  persist(
+    (set, get) => ({
+      // Initial state
+      availableProjects: [],
+      activeProjectId: null,
+      activeProjectDetails: null,
+      isLoading: false,
+      error: null,
+
+      // Actions
+      fetchAvailableProjects: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          // Simulate API call
+          await new Promise(resolve => setTimeout(resolve, 300)); 
+          set({ availableProjects: mockProjects, isLoading: false });
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to fetch projects';
+          set({ error: errorMessage, isLoading: false });
+          console.error("Error fetching projects:", errorMessage);
+        }
+      },
+      setActiveProject: (projectId) => {
+        const project = get().availableProjects.find(p => p.id === projectId);
+        if (project) {
+          set({ activeProjectId: projectId, activeProjectDetails: project, error: null });
+        } else {
+          set({ error: `Project with ID ${projectId} not found.`, activeProjectId: null, activeProjectDetails: null });
+        }
+      },
+      clearActiveProject: () => {
+        set({ activeProjectId: null, activeProjectDetails: null });
+      },
+      addProject: (newProject) => {
+        set(state => ({
+          availableProjects: [...state.availableProjects, newProject]
+        }));
+      },
+    }),
+    {
+      name: 'crest-project-storage', 
+      storage: createJSONStorage(() => localStorage), 
+      partialize: (state) => ({ activeProjectId: state.activeProjectId }), // Only persist activeProjectId
+    }
+  )
+);
+
+
+###############################################################################
 ### FILE: stores/submissionStore.ts
 ###############################################################################
 // src/stores/submissionStore.ts
@@ -2776,23 +2861,38 @@ export const useSubmissionStore = create<SubmissionState & SubmissionActions>()(
 ###############################################################################
 ### FILE: types/index.ts
 ###############################################################################
+// src/types/index.ts
 export interface User {
-    id: string;
-    name: string;
-    email: string;
-  }
-  
-  export interface ProjectMember {
-    userId: string;
-    roles: string[];
-  }
-  
-  export interface Project {
-    id: string;
-    name: string;
-    description: string;
-    members: ProjectMember[];
-  }
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface ProjectMember {
+  userId: string;
+  roles: string[];
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  goals?: string; // <-- FIX: Added optional goals property
+  members: ProjectMember[];
+}
+
+// Types for Dynamic Forms
+export interface AutocompleteOption {
+  value: string;
+  label: string;
+  [key: string]: any;
+}
+
+export interface SelectedItem {
+  value: string;
+  label: string;
+  [key: string]: any;
+}
 
 
 ###############################################################################

@@ -5,7 +5,10 @@ import ContextSwitcher from '@/components/layout/ContextSwitcher';
 import NavMenu, { NavItem } from '@/components/layout/NavMenu';
 import useAuthStore from '@/stores/authStore';
 import { useProjectStore } from '@/stores/projectStore';
-import { PiGaugeDuotone, PiGearDuotone, PiHouseDuotone, PiListChecksDuotone, PiSquaresFourDuotone, PiUsersDuotone, PiMagnifyingGlassDuotone, PiBellDuotone } from 'react-icons/pi';
+import { 
+    PiGaugeDuotone, PiGearDuotone, PiHouseDuotone, PiListChecksDuotone, 
+    PiSquaresFourDuotone, PiUsersDuotone, PiMagnifyingGlassDuotone, PiBellDuotone 
+} from 'react-icons/pi';
 
 const Sidebar: React.FC = () => {
   const { projectId } = useParams();
@@ -24,8 +27,12 @@ const Sidebar: React.FC = () => {
 
 
   const getNavItems = (): NavItem[] => {
-    if (projectId) {
-      // Base project navigation structure
+      // Base navigation structure
+      const globalNav: NavItem[] = [
+        { id: 'dashboard', path: `/`, label: 'Dashboard', icon: PiGaugeDuotone },
+        { id: 'settings', path: '/settings', label: 'Settings', icon: PiGearDuotone },
+      ];
+
       const projectNavStructure: NavItem[] = [
         { id: 'overview', path: `/project/${projectId}`, label: 'Project Overview', icon: PiHouseDuotone },
         {
@@ -49,34 +56,27 @@ const Sidebar: React.FC = () => {
           const hasRole = !item.roles || item.roles.some(role => activeProjectRoles.includes(role));
           
           if (hasRole) {
+            const newItem = {...item};
             if (item.children) {
-              const filteredChildren = filterByRole(item.children);
+              newItem.children = filterByRole(item.children);
               // Only include headers if they have visible children
-              if (filteredChildren.length > 0) {
-                acc.push({ ...item, children: filteredChildren });
+              if (newItem.children.length > 0) {
+                acc.push(newItem);
               }
             } else {
-              acc.push(item);
+              acc.push(newItem);
             }
           }
           return acc;
         }, []);
       };
-
-      return filterByRole(projectNavStructure);
-
-    } else {
-      // Global Context Navigation (Dashboard, Settings)
-      return [
-        { id: 'dashboard', path: `/`, label: 'Dashboard', icon: PiGaugeDuotone },
-        { id: 'settings', path: '/settings', label: 'Settings', icon: PiGearDuotone },
-      ];
-    }
+      
+      return projectId ? filterByRole(projectNavStructure) : globalNav;
   };
 
   return (
-    <aside className="fixed top-[var(--header-height)] left-0 z-30 w-64 h-screen border-r border-border bg-card transition-transform -translate-x-full lg:translate-x-0">
-      <div className="h-full px-3 py-4 overflow-y-auto">
+    <aside className="fixed top-[var(--header-height)] left-0 z-40 w-64 h-screen border-r bg-card/70 backdrop-blur-xl transition-transform -translate-x-full lg:translate-x-0">
+      <div className="h-full px-3 py-4 overflow-y-auto scrollbar-hide">
         <ContextSwitcher />
         <NavMenu items={getNavItems()} />
       </div>
