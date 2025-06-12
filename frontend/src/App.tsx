@@ -7,9 +7,12 @@ import SidebarLayout from '@/components/layout/SidebarLayout';
 
 // Page Components
 import DashboardPage from '@/pages/DashboardPage';
+import CreateProjectPage from '@/pages/CreateProjectPage';
 import ProjectDetailsPage from '@/pages/ProjectDetailsPage';
+import DataSubmissionPage from '@/pages/DataSubmissionPage'; // <-- NEW
+import FormBuilderPage from '@/pages/FormBuilderPage'; // <-- NEW
 import SettingsPage from '@/pages/SettingsPage';
-import NotFoundPage from '@/pages/NotFoundPage';
+import NotFoundPage from '@/pages/NotFoundPage'; // <-- FIXED
 
 function App() {
   return (
@@ -19,12 +22,15 @@ function App() {
         <Routes>
           {/* Routes WITHOUT the main sidebar */}
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/create-project" element={<CreateProjectPage />} />
           
           {/* Routes WITH the main sidebar */}
           <Route element={<SidebarLayout />}>
             <Route path="/project/:projectId" element={<ProjectDetailsPage />} />
+            <Route path="/project/:projectId/submission" element={<DataSubmissionPage />} />
+            <Route path="/project/:projectId/builder" element={<FormBuilderPage />} />
+            {/* Add RoleEditor, Search, Notifications routes here later */}
             <Route path="/settings" element={<SettingsPage />} />
-            {/* All other context-aware routes will go here */}
           </Route>
           
           <Route path="*" element={<NotFoundPage />} />
