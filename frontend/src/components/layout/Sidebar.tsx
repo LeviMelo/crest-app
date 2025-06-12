@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import ContextSwitcher from '@/components/layout/ContextSwitcher';
 import NavMenu, { NavItem } from '@/components/layout/NavMenu';
 import useAuthStore from '@/stores/authStore';
-import useProjectStore from '@/stores/projectStore';
+import { useProjectStore } from '@/stores/projectStore';
 import { PiGaugeDuotone, PiGearDuotone, PiHouseDuotone, PiListChecksDuotone, PiSquaresFourDuotone, PiUsersDuotone, PiMagnifyingGlassDuotone, PiBellDuotone } from 'react-icons/pi';
 
 const Sidebar: React.FC = () => {

@@ -2,7 +2,7 @@
 import { Routes, Route } from 'react-router-dom';
 
 // Layout Components
-import TopBar from '@/components/layout/TopBar';
+import TopBar from '@/components/layout/TopBar'; 
 import SidebarLayout from '@/components/layout/SidebarLayout';
 
 // Page Components

@@ -1,11 +1,12 @@
 // src/pages/ProjectDetailsPage.tsx
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import useProjectStore from '@/stores/projectStore';
+import { useProjectStore } from '@/stores/projectStore'; // <-- FIX: Named import
 import InfoWidget from '@/components/project/InfoWidget';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { PiUsersDuotone, PiFlagDuotone, PiHourglassSimpleDuotone, PiChartBarDuotone, PiFileTextDuotone } from 'react-icons/pi';
 import { Button } from '@/components/ui/Button';
+import { ProjectMember } from '@/types'; // <-- FIX: Import ProjectMember type
 
 const ProjectDetailsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -71,7 +72,8 @@ const ProjectDetailsPage: React.FC = () => {
         <div className="lg:col-span-1">
           <InfoWidget title="Team Members" icon={PiUsersDuotone}>
             <div className="space-y-3">
-              {members.map(member => (
+              {/* FIX: Added type annotation for 'member' */}
+              {members.map((member: ProjectMember) => (
                 <div key={member.userId} className="flex items-center">
                   <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.userId)}&background=random&size=32&color=fff&font-size=0.40&bold=true`} alt={member.userId} className="w-8 h-8 rounded-full mr-3"/>
                   <div>

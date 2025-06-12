@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PiCaretUpDownDuotone, PiGaugeDuotone, PiCheck, PiPlus } from 'react-icons/pi';
-import useProjectStore from '@/stores/projectStore';
+import { useProjectStore } from '@/stores/projectStore';
 import useAuthStore from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';

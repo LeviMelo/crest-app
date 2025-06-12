@@ -1,10 +1,10 @@
 // src/components/form-builder/JsonEditor.tsx
 import React, { useState } from 'react';
 import Editor from 'react-simple-code-editor';
-import { highlight, languages } from 'prismjs/components/prism-core';
-import 'prismjs/components/prism-clike';
+import 'prismjs';
 import 'prismjs/components/prism-json';
-import 'prismjs/themes/prism-tomorrow.css'; // Using a dark theme for the editor
+import { highlight, languages } from 'prismjs/components/prism-core';
+import 'prismjs/themes/prism-tomorrow.css'; 
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 
 interface JsonEditorProps {

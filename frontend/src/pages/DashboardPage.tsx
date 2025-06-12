@@ -1,12 +1,13 @@
 // src/pages/DashboardPage.tsx
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useProjectStore from '@/stores/projectStore';
+import { useProjectStore } from '@/stores/projectStore'; // FIX: Changed to a named import
 import useAuthStore, { mockLogin } from '@/stores/authStore';
 import ProjectCard from '@/components/dashboard/ProjectCard';
 import DashboardGreetingCard from '@/components/dashboard/DashboardGreetingCard';
 import { Button } from '@/components/ui/Button';
 import { PiUsersDuotone } from 'react-icons/pi';
+import { Project } from '@/types'; // FIX: Added import for type safety
 
 const DashboardPage: React.FC = () => {
   const { availableProjects, fetchAvailableProjects, isLoading } = useProjectStore();
@@ -26,7 +27,8 @@ const DashboardPage: React.FC = () => {
   }, [isAuthenticated, fetchAvailableProjects]);
   
   const userProjects = user
-    ? availableProjects.filter(p => p.members.some(m => m.userId === user.id))
+    // FIX: Added explicit types to resolve implicit 'any' errors
+    ? availableProjects.filter((p: Project) => p.members.some((m) => m.userId === user.id))
     : [];
 
   const handleCreateNewProject = () => navigate('/create-project');
@@ -42,7 +44,8 @@ const DashboardPage: React.FC = () => {
         )}
         {!isLoading && userProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {userProjects.map((project) => (
+            {/* FIX: Added explicit type to resolve implicit 'any' error */}
+            {userProjects.map((project: Project) => (
               <ProjectCard key={project.id} project={project} />
             ))}
           </div>

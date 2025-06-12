@@ -1,5 +1,5 @@
 // src/config/formBuilder.config.ts
-import { PiTextT, PiNumberCircleOne, PiToggleLeft, PiListDashes, PiListNumbers, PiCalendar, PiUserFocus } from 'react-icons/pi';
+import { PiTextT, PiNumberCircleOne, PiToggleLeft, PiListDashes, PiListNumbers } from 'react-icons/pi';
 
 export type FieldPrimitiveType = 'text' | 'number' | 'boolean' | 'singleChoice' | 'multipleChoice' | 'date';
 
@@ -98,5 +98,4 @@ export const FORM_BUILDER_PRIMITIVES: FieldPrimitive[] = [
       },
     },
   },
-  // We will add 'Field Group' as a special case later, as it's a structural element.
 ];

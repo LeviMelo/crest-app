@@ -11,6 +11,7 @@ export interface NavItem {
   icon?: IconType;
   isHeader?: boolean;
   children?: NavItem[];
+  roles?: string[]; // <-- FIX: Added optional roles property for permission checking
 }
 
 const NavMenu: React.FC<{ items: NavItem[] }> = ({ items }) => {

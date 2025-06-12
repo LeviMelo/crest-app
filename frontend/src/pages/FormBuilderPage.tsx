@@ -1,56 +1,67 @@
-// src/pages/FormBuilderPage.tsx
-import React, { useState } from 'react';
-import { PageHeader } from '@/components/ui/PageHeader';
+// src/pages/DashboardPage.tsx
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useProjectStore } from '@/stores/projectStore'; // <-- FIX: Named import
+import useAuthStore, { mockLogin } from '@/stores/authStore';
+import ProjectCard from '@/components/dashboard/ProjectCard';
+import DashboardGreetingCard from '@/components/dashboard/DashboardGreetingCard';
 import { Button } from '@/components/ui/Button';
-import Toolbox from '@/components/form-builder/Toolbox';
-import Canvas from '@/components/form-builder/Canvas';
-import Inspector from '@/components/form-builder/Inspector';
-import JsonEditor from '@/components/form-builder/JsonEditor';
-import { useFormBuilderStore } from '@/stores/formBuilderStore';
-import { PiSquaresFourDuotone, PiCode } from 'react-icons/pi';
+import { PiUsersDuotone } from 'react-icons/pi';
+import { Project } from '@/types'; // <-- FIX: Import Project type
 
-type ViewMode = 'visual' | 'json';
+const DashboardPage: React.FC = () => {
+  const { availableProjects, fetchAvailableProjects, isLoading } = useProjectStore();
+  const { user, isAuthenticated } = useAuthStore();
+  const navigate = useNavigate();
 
-const FormBuilderPage: React.FC = () => {
-  const [viewMode, setViewMode] = useState<ViewMode>('visual');
-  const { schema, uiSchema, setRawSchema, setRawUiSchema } = useFormBuilderStore();
+  useEffect(() => {
+    if (!isAuthenticated) {
+      mockLogin('userLead123');
+    }
+  }, [isAuthenticated]);
 
-  const handleSchemaChange = (value: string) => setRawSchema(value);
-  const handleUiSchemaChange = (value: string) => setRawUiSchema(value);
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAvailableProjects();
+    }
+  }, [isAuthenticated, fetchAvailableProjects]);
+  
+  const userProjects = user
+    // FIX: Added type annotation for 'p' and 'm'
+    ? availableProjects.filter((p: Project) => p.members.some(m => m.userId === user.id))
+    : [];
 
-  const visualView = (
-    <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-hidden">
-      <div className="lg:col-span-3 xl:col-span-2 h-full overflow-y-auto"><Toolbox /></div>
-      <div className="lg:col-span-6 xl:col-span-7 h-full overflow-y-auto"><Canvas /></div>
-      <div className="lg:col-span-3 xl:col-span-3 h-full overflow-y-auto"><Inspector /></div>
-    </div>
-  );
-
-  const jsonView = (
-    <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-hidden">
-      <JsonEditor title="Schema" jsonString={JSON.stringify(schema, null, 2)} onJsonChange={handleSchemaChange} />
-      <JsonEditor title="UI Schema" jsonString={JSON.stringify(uiSchema, null, 2)} onJsonChange={handleUiSchemaChange} />
-    </div>
-  );
+  const handleCreateNewProject = () => navigate('/create-project');
 
   return (
-    <div className="flex flex-col h-[calc(100vh-var(--header-height,64px)-3rem)] space-y-4">
-      <PageHeader
-        title="Form Builder"
-        subtitle="Design research forms with a live preview."
-        icon={PiSquaresFourDuotone}
-        gradient="accent"
-        className="flex-shrink-0 mb-0"
-      >
-        <Button variant="outline" onClick={() => setViewMode(viewMode === 'visual' ? 'json' : 'visual')}>
-          <PiCode className="mr-2" />
-          {viewMode === 'visual' ? 'JSON Mode' : 'Visual Mode'}
-        </Button>
-      </PageHeader>
-      
-      {viewMode === 'visual' ? visualView : jsonView}
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+      <DashboardGreetingCard onCreateNewProject={handleCreateNewProject} />
+
+      <section>
+        <h2 className="text-2xl font-bold text-foreground mb-4">My Projects</h2>
+        {isLoading && userProjects.length === 0 && (
+            <p className="text-muted-foreground">Loading projects...</p>
+        )}
+        {!isLoading && userProjects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* FIX: Added type annotation for 'project' */}
+            {userProjects.map((project: Project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        ) : (
+          !isLoading && (
+            <div className="text-center py-12 bg-card border-2 border-dashed rounded-lg">
+              <PiUsersDuotone className="text-4xl text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold">No Projects Yet</h3>
+              <p className="text-muted-foreground mt-1 mb-4">Get started by creating your first research project.</p>
+              <Button onClick={handleCreateNewProject}>Create a Project</Button>
+            </div>
+          )
+        )}
+      </section>
     </div>
   );
 };
 
-export default FormBuilderPage;
+export default DashboardPage;

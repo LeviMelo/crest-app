@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { User } from '@/types';
-import useProjectStore from './projectStore';
+import { useProjectStore } from '@/stores/projectStore';
 
 interface AuthState {
   isAuthenticated: boolean;

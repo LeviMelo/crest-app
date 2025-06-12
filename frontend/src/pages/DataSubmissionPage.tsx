@@ -1,5 +1,5 @@
 // src/pages/DataSubmissionPage.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react'; // FIX: Removed unused 'useCallback'
 import { useSubmissionStore, FormDefinition } from '@/stores/submissionStore';
 import { useFormBuilderStore } from '@/stores/formBuilderStore';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -62,8 +62,6 @@ const DataSubmissionPage: React.FC = () => {
         formSequence,
     } = useSubmissionStore();
 
-    // In a real app, form schemas would be fetched based on the formSequence definition.
-    // For this demo, we'll use the single form available from the builder store.
     const { schema, uiSchema, fieldOrder } = useFormBuilderStore();
     const MOCK_FORM_SEQUENCE: FormDefinition[] = [{ 
         key: 'form_from_builder', 
@@ -73,7 +71,6 @@ const DataSubmissionPage: React.FC = () => {
         uiSchemaPath: 'builder',
     }];
 
-    // Local state for the form data of the *current* step
     const [currentStepFormData, setCurrentStepFormData] = useState({});
 
     useEffect(() => {
@@ -135,8 +132,8 @@ const DataSubmissionPage: React.FC = () => {
                 <CardHeader><CardTitle>{currentFormDef.name}</CardTitle></CardHeader>
                 <CardContent>
                     <DynamicFormRenderer
-                        schema={schema} // Using builder schema for demo
-                        uiSchema={uiSchema} // Using builder uiSchema for demo
+                        schema={schema}
+                        uiSchema={uiSchema}
                         formData={currentStepFormData}
                         onFormDataChange={setCurrentStepFormData}
                         fieldOrder={fieldOrder}
