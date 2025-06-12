@@ -1,52 +1,54 @@
 // src/pages/FormBuilderPage.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { PiSquaresFourDuotone } from 'react-icons/pi';
+import { Button } from '@/components/ui/Button';
+import Toolbox from '@/components/form-builder/Toolbox';
+import Canvas from '@/components/form-builder/Canvas';
+import Inspector from '@/components/form-builder/Inspector';
+import JsonEditor from '@/components/form-builder/JsonEditor';
+import { useFormBuilderStore } from '@/stores/formBuilderStore';
+import { PiSquaresFourDuotone, PiCode } from 'react-icons/pi';
 
-const Toolbox = () => (
-  <Card className="h-full">
-    <CardHeader><CardTitle>Toolbox</CardTitle></CardHeader>
-    <CardContent><p className="text-muted-foreground text-sm">Draggable field widgets will appear here.</p></CardContent>
-  </Card>
-);
-
-const Canvas = () => (
-  <Card className="h-full">
-    <CardHeader><CardTitle>Canvas (Live Preview)</CardTitle></CardHeader>
-    <CardContent><p className="text-muted-foreground text-sm">The form preview will appear here.</p></CardContent>
-  </Card>
-);
-
-const Inspector = () => (
-  <Card className="h-full">
-    <CardHeader><CardTitle>Inspector</CardTitle></CardHeader>
-    <CardContent><p className="text-muted-foreground text-sm">Properties of the selected field will appear here.</p></CardContent>
-  </Card>
-);
+type ViewMode = 'visual' | 'json';
 
 const FormBuilderPage: React.FC = () => {
+  const [viewMode, setViewMode] = useState<ViewMode>('visual');
+  const { schema, uiSchema, setRawSchema, setRawUiSchema } = useFormBuilderStore();
+
+  const handleSchemaChange = (value: string) => setRawSchema(value);
+  const handleUiSchemaChange = (value: string) => setRawUiSchema(value);
+
+  const visualView = (
+    <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-hidden">
+      <div className="lg:col-span-3 xl:col-span-2 h-full overflow-y-auto"><Toolbox /></div>
+      <div className="lg:col-span-6 xl:col-span-7 h-full overflow-y-auto"><Canvas /></div>
+      <div className="lg:col-span-3 xl:col-span-3 h-full overflow-y-auto"><Inspector /></div>
+    </div>
+  );
+
+  const jsonView = (
+    <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-hidden">
+      <JsonEditor title="Schema" jsonString={JSON.stringify(schema, null, 2)} onJsonChange={handleSchemaChange} />
+      <JsonEditor title="UI Schema" jsonString={JSON.stringify(uiSchema, null, 2)} onJsonChange={handleUiSchemaChange} />
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-[calc(100vh-var(--header-height)-4rem)] space-y-6">
+    <div className="flex flex-col h-[calc(100vh-var(--header-height,64px)-3rem)] space-y-4">
       <PageHeader
         title="Form Builder"
         subtitle="Design research forms with a live preview."
         icon={PiSquaresFourDuotone}
         gradient="accent"
-        className="flex-shrink-0"
-      />
+        className="flex-shrink-0 mb-0"
+      >
+        <Button variant="outline" onClick={() => setViewMode(viewMode === 'visual' ? 'json' : 'visual')}>
+          <PiCode className="mr-2" />
+          {viewMode === 'visual' ? 'JSON Mode' : 'Visual Mode'}
+        </Button>
+      </PageHeader>
       
-      <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
-        <div className="lg:col-span-2 h-full overflow-y-auto">
-          <Toolbox />
-        </div>
-        <div className="lg:col-span-6 h-full overflow-y-auto">
-          <Canvas />
-        </div>
-        <div className="lg:col-span-4 h-full overflow-y-auto">
-          <Inspector />
-        </div>
-      </div>
+      {viewMode === 'visual' ? visualView : jsonView}
     </div>
   );
 };

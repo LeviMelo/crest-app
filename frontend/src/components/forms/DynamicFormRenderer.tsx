@@ -1,27 +1,25 @@
 // src/components/forms/DynamicFormRenderer.tsx
 import React from 'react';
-
-// For a truly scalable solution, widgets would be lazy-loaded.
-// For now, we'll import them directly. This is a key area for future optimization.
-import { InputField } from '@/components/ui/InputField';
-// Assume other form widgets will be created in future steps.
+import { FormSchema, FormUiSchema } from '@/stores/formBuilderStore';
+import NumberWidget from './widgets/NumberWidget';
+// Other widgets will be imported here
 
 interface DynamicFormRendererProps {
-  schema: any;
-  uiSchema: any;
+  schema: FormSchema;
+  uiSchema: FormUiSchema;
   formData: any;
   onFormDataChange: (updatedData: any) => void;
+  fieldOrder?: string[];
 }
 
-// A simple widget registry.
 const widgetRegistry: { [key: string]: React.ComponentType<any> } = {
-  InputFieldWidget: InputField,
-  // Other widgets like SelectFieldWidget, RadioButtonGroupField, etc., would be registered here.
+  NumberWidget,
+  // TextWidget, ChoiceWidget, etc.
 };
 
-const UnhandledWidget = ({ propertyName, widgetName }: { propertyName: string, widgetName: string }) => (
-  <div className="mb-4 p-2 border border-dashed border-destructive text-sm text-destructive rounded-md bg-destructive/10">
-    <p><strong>Unhandled Widget:</strong> <code>{widgetName || 'Default'}</code> for field <code>{propertyName}</code>.</p>
+const UnhandledWidget = ({ widgetName, fieldId }: { widgetName: string, fieldId: string }) => (
+  <div className="p-2 border-dashed border-destructive bg-destructive/10 text-destructive text-xs rounded-md">
+    Unhandled Widget: <strong>{widgetName || 'N/A'}</strong> for field <strong>{fieldId}</strong>
   </div>
 );
 
@@ -30,48 +28,40 @@ const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   uiSchema,
   formData,
   onFormDataChange,
+  fieldOrder,
 }) => {
-  if (!schema || !schema.properties) {
-    return <p className="text-destructive">Schema not provided or is invalid.</p>;
-  }
+  const fieldsToRender = fieldOrder || Object.keys(schema.properties);
 
-  const renderField = (propertyName: string, propertySchema: any) => {
-    const uiOptions = uiSchema[propertyName] || {};
-    const widgetName = uiOptions['ui:widget'];
-    const WidgetComponent = widgetName ? widgetRegistry[widgetName] : null;
-
-    if (!WidgetComponent) {
-      return (
-        <UnhandledWidget
-          key={propertyName}
-          propertyName={propertyName}
-          widgetName={widgetName}
-        />
-      );
-    }
-
-    const fieldUiOptions = uiOptions['ui:options'] || {};
-
-    const commonProps = {
-      id: propertyName,
-      label: propertySchema.title || propertyName,
-      required: schema.required?.includes(propertyName) || fieldUiOptions.required,
-      value: formData[propertyName],
-      onChange: (valueOrEvent: any) => {
-        const newValue = valueOrEvent?.target ? valueOrEvent.target.value : valueOrEvent;
-        onFormDataChange({ ...formData, [propertyName]: newValue });
-      },
-      ...fieldUiOptions, // Pass all other ui:options as props
-    };
-
-    return <WidgetComponent key={propertyName} {...commonProps} />;
+  const handleFieldChange = (fieldId: string, newValue: any) => {
+    onFormDataChange({
+      ...formData,
+      [fieldId]: newValue,
+    });
   };
 
   return (
-    <form className="space-y-8">
-      {Object.keys(schema.properties).map((propertyName) =>
-        renderField(propertyName, schema.properties[propertyName])
-      )}
+    <form className="space-y-6">
+      {fieldsToRender.map(fieldId => {
+        const fieldSchema = schema.properties[fieldId];
+        const fieldUiSchema = uiSchema[fieldId];
+        const WidgetComponent = widgetRegistry[fieldUiSchema?.['ui:widget']];
+
+        if (!WidgetComponent) {
+          return <UnhandledWidget key={fieldId} fieldId={fieldId} widgetName={fieldUiSchema?.['ui:widget']} />;
+        }
+
+        return (
+          <div key={fieldId}>
+            <WidgetComponent
+              label={fieldSchema.title}
+              value={formData[fieldId]}
+              onChange={(newValue: any) => handleFieldChange(fieldId, newValue)}
+              options={fieldUiSchema['ui:options'] || {}}
+              schema={fieldSchema} // Pass schema properties like min/max
+            />
+          </div>
+        );
+      })}
     </form>
   );
 };

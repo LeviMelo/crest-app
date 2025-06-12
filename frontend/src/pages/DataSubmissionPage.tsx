@@ -1,20 +1,32 @@
 // src/pages/DataSubmissionPage.tsx
-import React from 'react';
-import { useSubmissionStore } from '@/stores/submissionStore';
+import React, { useState, useEffect } from 'react';
+import { useSubmissionStore, FormDefinition } from '@/stores/submissionStore';
+import { useFormBuilderStore } from '@/stores/formBuilderStore'; // To get a form to render
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/Card';
 import { InputField } from '@/components/ui/InputField';
 import DraftStatusBar from '@/components/forms/DraftStatusBar';
+import DynamicFormRenderer from '@/components/forms/DynamicFormRenderer';
 import { PiListChecksDuotone } from 'react-icons/pi';
 
 const DataSubmissionPage: React.FC = () => {
-    const { patientData, updatePatientData, isEncounterActive, startNewEncounter } = useSubmissionStore();
+    const { patientData, updatePatientData, isEncounterActive, startNewEncounter, formData, setFormData, completeAndClearEncounter } = useSubmissionStore();
+    
+    // In a real app, you'd fetch this. We'll use the form from the builder store as a demo.
+    const { schema, uiSchema, fieldOrder } = useFormBuilderStore();
+    const MOCK_FORM_SEQUENCE: FormDefinition[] = [{ 
+        key: 'built_form', 
+        name: schema.title, 
+        version: '1.0',
+        // In a real app, these paths would point to a backend resource
+        schemaPath: 'from_builder', 
+        uiSchemaPath: 'from_builder' 
+    }];
 
     const handleStart = () => {
         if (patientData?.initials && patientData?.gender && patientData?.dob && patientData.projectConsent) {
-            // In a real app, form sequence would come from project config
-            startNewEncounter(patientData, [/* MOCK_FORM_SEQUENCE */]);
+            startNewEncounter(patientData, MOCK_FORM_SEQUENCE);
         } else {
             alert("Please fill all required patient fields and provide consent.");
         }
@@ -25,7 +37,6 @@ const DataSubmissionPage: React.FC = () => {
         updatePatientData({ [id]: type === 'checkbox' ? checked : value });
     };
 
-    // This is the initial patient identification step
     const renderPatientInput = () => (
         <Card>
             <CardHeader><CardTitle>Patient Identification & Consent</CardTitle></CardHeader>
@@ -46,12 +57,23 @@ const DataSubmissionPage: React.FC = () => {
         </Card>
     );
     
-    // This will render the multi-step form sequence
     const renderFormSequence = () => (
-        <div className="text-center py-12 bg-card border rounded-lg">
-            <h3 className="text-lg font-semibold">Form Sequence In Progress</h3>
-            <p className="text-muted-foreground mt-1">The dynamic form renderer will display the current form here.</p>
-        </div>
+        <Card>
+            <CardHeader><CardTitle>{schema.title}</CardTitle></CardHeader>
+            <CardContent>
+                <DynamicFormRenderer
+                    schema={schema}
+                    uiSchema={uiSchema}
+                    formData={formData}
+                    onFormDataChange={setFormData}
+                    fieldOrder={fieldOrder}
+                />
+            </CardContent>
+            <CardFooter>
+                <Button onClick={completeAndClearEncounter} variant="destructive" className="mr-auto">Cancel</Button>
+                <Button onClick={() => alert(JSON.stringify(formData, null, 2))}>Submit</Button>
+            </CardFooter>
+        </Card>
     );
 
     return (
