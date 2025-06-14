@@ -18,6 +18,7 @@ import NotFoundPage from '@/pages/NotFoundPage';
 import ProjectOverviewPage from '@/pages/project/ProjectOverviewPage';
 import DataSubmissionsHubPage from '@/pages/project/DataSubmissionsHubPage';
 import ProjectFormBuilderPage from '@/pages/project/ProjectFormBuilderPage';
+import ProjectFormBuilderPageV2 from '@/pages/project/ProjectFormBuilderPageV2';
 import MembersAndRolesPage from '@/pages/project/MembersAndRolesPage';
 import EncounterPage from '@/pages/project/EncounterPage';
 
@@ -43,6 +44,7 @@ function App() {
             {/* + ADD ROUTE FOR AN EXISTING ENCOUNTER */}
             <Route path="/project/:projectId/submissions/:encounterId" element={<EncounterPage />} />
             <Route path="/project/:projectId/builder" element={<ProjectFormBuilderPage />} />
+            <Route path="/project/:projectId/builder-v2" element={<ProjectFormBuilderPageV2 />} />
             <Route path="/project/:projectId/members" element={<MembersAndRolesPage />} />
             <Route path="/project/:projectId" element={<ProjectOverviewPage />} />
           </Route>
