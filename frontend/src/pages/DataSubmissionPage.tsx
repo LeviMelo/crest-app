@@ -1,20 +1,14 @@
 // src/pages/project/DataSubmissionsHubPage.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { PiListChecksDuotone, PiPlusCircleDuotone } from 'react-icons/pi';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/Card';
 import { useNavigate, useParams } from 'react-router-dom'; // + Import hooks
-import PatientRegistrationModal from '@/components/forms/PatientRegistrationModal';
-import { useSubmissionStore } from '@/stores/submissionStore';
-import { mockProjectForms, SavedForm } from '@/data/mockForms';
-import { FormDefinition } from '@/stores/submissionStore';
 
 const DataSubmissionsHubPage: React.FC = () => {
     const navigate = useNavigate(); // + Get navigation function
     const { projectId } = useParams(); // + Get projectId from URL
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const { startNewEncounter, patientData } = useSubmissionStore();
 
     // In the future, this will fetch a list of encounters from a store
     const mockEncounters = [
@@ -24,24 +18,10 @@ const DataSubmissionsHubPage: React.FC = () => {
     ];
 
     const handleStartNew = () => {
-        setIsModalOpen(true);
-    };
+        // + Navigate to the new encounter page
+        navigate(`/project/${projectId}/submissions/new`);
+    }
     
-    const handleStartEncounter = () => {
-        if (patientData) {
-             const projectForms = mockProjectForms.filter(f => f.projectId === projectId);
-             const formSequence: FormDefinition[] = projectForms.map((f: SavedForm) => ({
-                key: f.id,
-                name: f.name,
-                version: '1.0', // placeholder
-                schema: f.schema,
-                uiSchema: f.uiSchema
-             }));
-            startNewEncounter(patientData, formSequence);
-            navigate(`/project/${projectId}/submissions/new`);
-        }
-    };
-
     const handleResume = (encounterId: string) => {
         // + Navigate to the specific encounter page
         navigate(`/project/${projectId}/submissions/${encounterId}`);
@@ -98,12 +78,6 @@ const DataSubmissionsHubPage: React.FC = () => {
                     <p className="text-xs text-muted-foreground">Showing {mockEncounters.length} encounters.</p>
                 </CardFooter>
             </Card>
-
-            <PatientRegistrationModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onStartEncounter={handleStartEncounter}
-            />
         </div>
     );
 };

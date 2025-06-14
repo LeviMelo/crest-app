@@ -6,8 +6,8 @@ import Stepper from '@/components/ui/Stepper';
 
 interface NumberWidgetProps {
   label: string;
-  value: number;
-  onChange: (newValue: number) => void;
+  value: number | undefined;
+  onChange: (newValue: number | undefined) => void;
   options: {
     unit?: string;
     enabledInputs: ('inputBox' | 'slider' | 'stepper')[];
@@ -23,7 +23,12 @@ const NumberWidget: React.FC<NumberWidgetProps> = ({ label, value, onChange, opt
   const { minimum, maximum } = schema;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.valueAsNumber);
+    const num = e.target.valueAsNumber;
+    if (!isNaN(num)) {
+      onChange(num);
+    } else if (e.target.value === '') {
+      onChange(undefined); // Allow clearing the input
+    }
   };
 
   const handleSliderChange = (values: number[]) => {
@@ -31,37 +36,40 @@ const NumberWidget: React.FC<NumberWidgetProps> = ({ label, value, onChange, opt
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <label className="text-sm font-medium">{label}</label>
-      {enabledInputs.includes('inputBox') && (
-        <div className="flex items-center gap-2">
-          <InputField
-            id={`input-${label}`}
-            type="number"
-            label=""
-            value={value || ''}
-            onChange={handleInputChange}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        {enabledInputs.includes('inputBox') && (
+            <InputField
+              id={`input-${label}`}
+              type="number"
+              label=""
+              containerClassName='w-full sm:w-40'
+              value={value || ''}
+              onChange={handleInputChange}
+              min={minimum}
+              max={maximum}
+              addon={unit}
+            />
+        )}
+        {enabledInputs.includes('stepper') && (
+          <Stepper
+            value={value || 0}
+            onValueChange={onChange}
             min={minimum}
             max={maximum}
           />
-          {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
-        </div>
-      )}
+        )}
+      </div>
+
       {enabledInputs.includes('slider') && (
         <Slider
-          value={[value || 0]}
+          value={[value || minimum || 0]}
           onValueChange={handleSliderChange}
           min={minimum}
           max={maximum}
           step={1}
-        />
-      )}
-      {enabledInputs.includes('stepper') && (
-        <Stepper
-          value={value || 0}
-          onValueChange={onChange}
-          min={minimum}
-          max={maximum}
+          className='pt-2'
         />
       )}
     </div>

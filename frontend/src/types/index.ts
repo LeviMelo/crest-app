@@ -30,3 +30,10 @@ export interface SelectedItem {
   label: string;
   [key: string]: any;
 }
+
+export interface PatientInputData {
+  initials: string;
+  gender: string;
+  dob: string;
+  projectConsent: boolean;
+}

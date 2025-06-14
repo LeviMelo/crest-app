@@ -8,21 +8,23 @@ const Toolbox: React.FC = () => {
   const addField = useFormBuilderStore(state => state.addField);
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Toolbox</CardTitle>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0">
+        <CardTitle className="text-lg lg:text-xl">Toolbox</CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">Click or drag fields to add them to the canvas.</p>
-        <div className="grid grid-cols-2 gap-2">
+      <CardContent className="flex-grow">
+        <p className="text-xs lg:text-sm text-muted-foreground mb-4">
+          Tap fields to add them to the canvas.
+        </p>
+        <div className="grid grid-cols-2 lg:grid-cols-2 gap-3">
           {FORM_BUILDER_PRIMITIVES.map(primitive => (
             <button
               key={primitive.type}
-              onClick={() => addField(primitive.type)}
-              className="p-2 border rounded-lg flex flex-col items-center justify-center text-center hover:bg-accent hover:border-primary transition-all"
+              onClick={() => addField(primitive.type, null)}
+              className="p-3 lg:p-4 border rounded-lg flex flex-col items-center justify-center text-center hover:bg-accent hover:border-primary transition-all active:scale-95 min-h-[80px] lg:min-h-[100px]"
             >
-              <primitive.icon className="w-6 h-6 mb-1" />
-              <span className="text-xs font-medium">{primitive.label}</span>
+              <primitive.icon className="w-6 h-6 lg:w-8 lg:h-8 mb-2" />
+              <span className="text-xs lg:text-sm font-medium leading-tight">{primitive.label}</span>
             </button>
           ))}
         </div>

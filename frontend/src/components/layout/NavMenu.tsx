@@ -20,7 +20,7 @@ const NavMenu: React.FC<{ items: NavItem[] }> = ({ items }) => {
   const isChildActive = (item: NavItem): boolean => {
     if (!item.children) return false;
     return item.children.some(child => 
-      child.path === location.pathname || (child.children && isChildActive(child))
+      child.path && location.pathname.startsWith(child.path)
     );
   };
 
@@ -37,7 +37,7 @@ const NavMenu: React.FC<{ items: NavItem[] }> = ({ items }) => {
               item.path && (
                 <NavLink
                   to={item.path}
-                  end={item.path === '/'}
+                  end // + Add the 'end' prop here
                   className={({ isActive }) =>
                     cn(
                       'flex items-center p-2.5 text-sm rounded-lg hover:bg-accent transition-all duration-200 group relative',

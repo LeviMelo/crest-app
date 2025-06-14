@@ -1,18 +1,25 @@
 // src/App.tsx
+import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 
 // Layout Components
-import TopBar from '@/components/layout/TopBar'; 
+import TopBar from '@/components/layout/TopBar';
 import SidebarLayout from '@/components/layout/SidebarLayout';
 
-// Page Components
+// Top-Level Pages
 import DashboardPage from '@/pages/DashboardPage';
-import CreateProjectPage from '@/pages/CreateProjectPage';
-import ProjectDetailsPage from '@/pages/ProjectDetailsPage';
-import DataSubmissionPage from '@/pages/DataSubmissionPage';
-import FormBuilderPage from '@/pages/FormBuilderPage';
+import ProjectsListPage from '@/pages/ProjectsListPage';      
+import FormsLibraryPage from '@/pages/FormsLibraryPage';
 import SettingsPage from '@/pages/SettingsPage';
+import CreateProjectPage from '@/pages/CreateProjectPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+
+// Project Workspace Pages
+import ProjectOverviewPage from '@/pages/project/ProjectOverviewPage';
+import DataSubmissionsHubPage from '@/pages/project/DataSubmissionsHubPage';
+import ProjectFormBuilderPage from '@/pages/project/ProjectFormBuilderPage';
+import MembersAndRolesPage from '@/pages/project/MembersAndRolesPage';
+import EncounterPage from '@/pages/project/EncounterPage';
 
 function App() {
   return (
@@ -20,21 +27,27 @@ function App() {
       <TopBar />
       <main className="pt-[var(--header-height)]">
         <Routes>
-          {/* Routes WITHOUT the main sidebar */}
+          {/* --- Global Routes (No Project Sidebar) --- */}
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/projects" element={<ProjectsListPage />} />
+          <Route path="/forms" element={<FormsLibraryPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/create-project" element={<CreateProjectPage />} />
-          
-          {/* Routes WITH the main sidebar (wrapped in the SidebarLayout) */}
+
+          {/* --- Project Workspace (With Project Sidebar) --- */}
           <Route element={<SidebarLayout />}>
-            <Route path="/project/:projectId" element={<ProjectDetailsPage />} />
-            <Route path="/project/:projectId/submission" element={<DataSubmissionPage />} />
-            <Route path="/project/:projectId/builder" element={<FormBuilderPage />} />
-            {/* Future project-specific routes can be added here */}
+            <Route path="/project/:projectId/overview" element={<ProjectOverviewPage />} />
+            <Route path="/project/:projectId/submissions" element={<DataSubmissionsHubPage />} />
+            {/* + ADD ROUTE FOR A NEW ENCOUNTER */}
+            <Route path="/project/:projectId/submissions/new" element={<EncounterPage />} />
+            {/* + ADD ROUTE FOR AN EXISTING ENCOUNTER */}
+            <Route path="/project/:projectId/submissions/:encounterId" element={<EncounterPage />} />
+            <Route path="/project/:projectId/builder" element={<ProjectFormBuilderPage />} />
+            <Route path="/project/:projectId/members" element={<MembersAndRolesPage />} />
+            <Route path="/project/:projectId" element={<ProjectOverviewPage />} />
           </Route>
 
-          {/* Standalone Settings Page */}
-          <Route path="/settings" element={<SettingsPage />} />
-          
+          {/* --- Catch-all Not Found Route --- */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

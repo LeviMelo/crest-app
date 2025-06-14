@@ -1,4 +1,3 @@
-// src/pages/project/ProjectOverviewPage.tsx
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjectStore } from '@/stores/projectStore';
@@ -8,7 +7,7 @@ import { PiUsersDuotone, PiFlagDuotone, PiHourglassSimpleDuotone, PiChartBarDuot
 import { Button } from '@/components/ui/Button';
 import { ProjectMember } from '@/types';
 
-const ProjectOverviewPage: React.FC = () => {
+const ProjectDetailsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { setActiveProject, activeProjectDetails, isLoading } = useProjectStore();
@@ -45,21 +44,21 @@ const ProjectOverviewPage: React.FC = () => {
       />
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <InfoWidget title="Total Submissions" icon={PiChartBarDuotone}>
+        <InfoWidget title="Data Status" icon={PiChartBarDuotone}>
           <div className="text-2xl font-bold">1,234</div>
-          <p className="text-xs text-muted-foreground">(Mock Data)</p>
+          <p className="text-xs text-muted-foreground">Total Submissions (Mock)</p>
         </InfoWidget>
-        <InfoWidget title="Active Encounters" icon={PiHourglassSimpleDuotone}>
-           <div className="text-2xl font-bold">12</div>
-           <p className="text-xs text-muted-foreground">(Mock Data)</p>
+        <InfoWidget title="Team Members" icon={PiUsersDuotone}>
+           <div className="text-2xl font-bold">{members.length}</div>
+           <p className="text-xs text-muted-foreground">Active Collaborators</p>
         </InfoWidget>
-        <InfoWidget title="Pending Invites" icon={PiUsersDuotone}>
+        <InfoWidget title="Project Phase" icon={PiHourglassSimpleDuotone}>
+            <div className="text-2xl font-bold">Data Collection</div>
+           <p className="text-xs text-muted-foreground">Current Status (Mock)</p>
+        </InfoWidget>
+         <InfoWidget title="Goals" icon={PiFlagDuotone}>
             <div className="text-2xl font-bold">3</div>
-           <p className="text-xs text-muted-foreground">For Project Leads (Mock)</p>
-        </InfoWidget>
-         <InfoWidget title="Data Quality Flags" icon={PiFlagDuotone}>
-            <div className="text-2xl font-bold">7</div>
-           <p className="text-xs text-muted-foreground">For Project Leads (Mock)</p>
+           <p className="text-xs text-muted-foreground">Primary Objectives (Mock)</p>
         </InfoWidget>
       </div>
 
@@ -72,6 +71,7 @@ const ProjectOverviewPage: React.FC = () => {
         <div className="lg:col-span-1">
           <InfoWidget title="Team Members" icon={PiUsersDuotone}>
             <div className="space-y-3">
+              {/* FIX: Added type annotation for 'member' */}
               {members.map((member: ProjectMember) => (
                 <div key={member.userId} className="flex items-center">
                   <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.userId)}&background=random&size=32&color=fff&font-size=0.40&bold=true`} alt={member.userId} className="w-8 h-8 rounded-full mr-3"/>
@@ -89,4 +89,4 @@ const ProjectOverviewPage: React.FC = () => {
   );
 };
 
-export default ProjectOverviewPage;
+export default ProjectDetailsPage; 

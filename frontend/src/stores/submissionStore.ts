@@ -1,20 +1,15 @@
 // src/stores/submissionStore.ts
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-
-export interface PatientInputData {
-  initials: string;
-  gender: string;
-  dob: string;
-  projectConsent: boolean;
-}
+import { PatientInputData } from '@/types';
+import { FormSchema, FormUiSchema } from './formBuilderStore';
 
 export interface FormDefinition {
   key: string; 
   name: string;
   version: string;
-  schemaPath: string;
-  uiSchemaPath: string;
+  schema: FormSchema;
+  uiSchema: FormUiSchema;
 }
 
 interface SubmissionState {
