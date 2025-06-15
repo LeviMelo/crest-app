@@ -8,6 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useFormBuilderStoreV2, Field } from '@/stores/formBuilderStore.v2';
 import { PiTrash, PiPlus } from 'react-icons/pi';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/Switch';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Label } from '@/components/ui/Label';
 
 // Color palette configuration
 const COLOR_PALETTE = [
@@ -94,14 +98,12 @@ const ChoiceEditor: React.FC<{
       <div className="space-y-2">
         {choices.map((choice, index) => (
           <div key={index} className="flex items-center gap-2 p-1 border rounded">
-            <InputField
+            <Input
               id={`choice-label-${index}`}
-              label=""
               placeholder="Choice Label"
               value={choice.label}
-              onChange={(e) => updateChoiceLabel(index, e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateChoiceLabel(index, e.target.value)}
               className="flex-1 text-xs min-w-0 h-8"
-              containerClassName="w-full gap-0"
             />
             <Button
               size="icon"
@@ -141,52 +143,38 @@ const InspectorV2: React.FC = () => {
     }
   }, [selectedField]);
 
-  // Auto-save on changes (debounced) - reduced delay for better UX
-  useEffect(() => {
-    if (localField && selectedField && selectedFieldId) {
-      const timeoutId = setTimeout(() => {
-        updateField(selectedFieldId, localField);
-      }, 300); // Slightly increased for stability
-      return () => clearTimeout(timeoutId);
-    }
-  }, [localField, selectedField, selectedFieldId, updateField]);
-
   const updateLocalField = (updates: Partial<Field>) => {
-    if (localField) {
-      setLocalField(prev => prev ? { ...prev, ...updates } : null);
+    if (localField && selectedFieldId) {
+      const newField = { ...localField, ...updates };
+      setLocalField(newField);
+      updateField(selectedFieldId, newField);
     }
   };
 
   const updateLocalOptions = (optionUpdates: any) => {
-    if (localField) {
-      setLocalField(prev => prev ? {
-        ...prev,
-        options: { ...prev.options, ...optionUpdates }
-      } : null);
+    if (localField && selectedFieldId) {
+      const newField = {
+        ...localField,
+        options: { ...localField.options, ...optionUpdates }
+      };
+      setLocalField(newField);
+      updateField(selectedFieldId, newField);
     }
   };
 
   const updateLocalStyling = (stylingUpdates: any) => {
-    if (localField) {
-      setLocalField(prev => prev ? {
-        ...prev,
-        styling: { ...prev.styling, ...stylingUpdates }
-      } : null);
+    if (localField && selectedFieldId) {
+       const newField = {
+        ...localField,
+        styling: { ...localField.styling, ...stylingUpdates }
+      };
+      setLocalField(newField);
+      updateField(selectedFieldId, newField);
     }
   };
 
-  // Immediate color update for better UX
-  const handleColorChange = (color: string) => {
-    if (selectedField && selectedFieldId) {
-      // Update immediately in store
-      updateField(selectedFieldId, {
-        ...selectedField,
-        styling: { ...selectedField.styling, color }
-      });
-      // Also update local state
-      updateLocalStyling({ color });
-    } else if (selectedSection && selectedFieldId) {
-      // Update section color immediately
+  const handleSectionColorChange = (color: string) => {
+    if (selectedSection && selectedFieldId) {
       updateSection(selectedFieldId, {
         styling: { ...selectedSection.styling, color }
       });
@@ -234,26 +222,9 @@ const InspectorV2: React.FC = () => {
             id="section-title"
             label="Section Title"
             value={selectedSection.title}
-            onChange={(e) => updateSection(selectedFieldId, { title: e.target.value })}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSection(selectedFieldId, { title: e.target.value })}
           />
           
-          <div>
-            <label className="text-sm font-medium">Columns</label>
-            <Select
-              value={selectedSection.columns.toString()}
-              onValueChange={(value: string) => updateSection(selectedFieldId, { columns: parseInt(value) })}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1 Column</SelectItem>
-                <SelectItem value="2">2 Columns</SelectItem>
-                <SelectItem value="3">3 Columns</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Section styling */}
           <div className="pt-4 border-t space-y-4">
             <h4 className="font-medium">
@@ -265,7 +236,7 @@ const InspectorV2: React.FC = () => {
               <label className="text-sm font-medium mb-3 block">Color</label>
               <ColorPalette
                 selectedColor={selectedSection.styling.color}
-                onColorChange={handleColorChange}
+                onColorChange={handleSectionColorChange}
               />
             </div>
           </div>
@@ -290,6 +261,18 @@ const InspectorV2: React.FC = () => {
   // Field inspector
   if (!localField) return null;
 
+  const handleLayoutChange = (style: 'auto' | 'columns', columns?: number) => {
+    updateLocalOptions({ layout: { style, columns } });
+  };
+
+  const layout = localField.options.layout || { style: 'auto' };
+
+  // Determine which column options are enabled based on field width
+  const isCompact = localField.styling.width === 'compact';
+  const isNormal = localField.styling.width === 'normal' || !localField.styling.width;
+
+  const showChoiceLayout = (localField.type === 'single-choice' && localField.options.displayAs !== 'dropdown') || localField.type === 'multiple-choice';
+
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="p-4 sm:p-6">
@@ -306,27 +289,22 @@ const InspectorV2: React.FC = () => {
       <CardContent className="flex-grow overflow-auto space-y-4 p-4 sm:p-6">
         {/* Basic Properties */}
         <div className="space-y-4">
-          <InputField
-            id="field-label"
-            label="Label"
-            value={localField.label}
-            onChange={(e) => updateLocalField({ label: e.target.value })}
-          />
-          
           <div>
-            <label htmlFor="field-description" className="text-sm font-medium block mb-1.5">
-              <span className="hidden sm:inline">Description</span>
-              <span className="sm:hidden">Desc</span>
-            </label>
-            <TextareaField
-              id="field-description"
-              label=""
-              value={localField.description || ''}
-              onChange={(e) => updateLocalField({ description: e.target.value })}
-              rows={2}
+            <Label htmlFor="field-label">Label</Label>
+            <Input
+              id="field-label"
+              value={localField.label}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateLocalField({ label: e.target.value })}
             />
           </div>
-          
+          <div>
+            <Label htmlFor="field-description">Description</Label>
+            <Textarea
+              id="field-description"
+              value={localField.description}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateLocalField({ description: e.target.value })}
+            />
+          </div>
           <div className="flex items-center space-x-2">
             <Checkbox
               id="field-required"
@@ -346,22 +324,13 @@ const InspectorV2: React.FC = () => {
             <span className="sm:hidden">Options</span>
           </h4>
           
-          {localField.type === 'text' && (
-            <InputField
-              id="text-placeholder"
-              label="Placeholder"
-              value={localField.options.placeholder || ''}
-              onChange={(e) => updateLocalOptions({ placeholder: e.target.value })}
-            />
-          )}
-
           {localField.type === 'number' && (
             <div className="space-y-3">
               <InputField
                 id="number-unit"
                 label="Unit"
                 value={localField.options.unit || ''}
-                onChange={(e) => updateLocalOptions({ unit: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateLocalOptions({ unit: e.target.value })}
                 placeholder="e.g., kg, mmHg, %"
               />
               
@@ -395,23 +364,16 @@ const InspectorV2: React.FC = () => {
           )}
 
           {localField.type === 'boolean' && (
-            <div>
-              <label className="text-sm font-medium">
-                <span className="hidden sm:inline">Display As</span>
-                <span className="sm:hidden">Display</span>
-              </label>
-              <Select
-                value={localField.options.displayAs || 'checkbox'}
-                onValueChange={(value: string) => updateLocalOptions({ displayAs: value })}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="checkbox">Checkbox</SelectItem>
-                  <SelectItem value="toggle">Toggle Switch</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+              <div className="space-y-0.5">
+                <label htmlFor="display-as-switch" className="text-sm font-medium">Toggle Switch</label>
+                <p className="text-xs text-muted-foreground">Display as a switch instead of a checkbox.</p>
+              </div>
+              <Switch
+                id="display-as-switch"
+                checked={localField.options.displayAs === 'switch'}
+                onCheckedChange={(checked) => updateLocalOptions({ displayAs: checked ? 'switch' : 'checkbox' })}
+              />
             </div>
           )}
 
@@ -446,6 +408,49 @@ const InspectorV2: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {showChoiceLayout && (
+                <div className="pt-2 border-t">
+                  <label className="text-sm font-medium">Choice Layout</label>
+                  <div className="mt-2 flex justify-stretch gap-2">
+                    <Button
+                      size="sm"
+                      variant={layout.style === 'auto' ? 'default' : 'outline'}
+                      onClick={() => handleLayoutChange('auto')}
+                      className="flex-1"
+                    >
+                      Auto
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={isCompact}
+                      variant={layout.style === 'columns' && layout.columns === 2 ? 'default' : 'outline'}
+                      onClick={() => handleLayoutChange('columns', 2)}
+                      className="flex-1"
+                    >
+                      2 Col
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={isCompact || isNormal}
+                      variant={layout.style === 'columns' && layout.columns === 3 ? 'default' : 'outline'}
+                      onClick={() => handleLayoutChange('columns', 3)}
+                      className="flex-1"
+                    >
+                      3 Col
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled
+                      variant={layout.style === 'columns' && layout.columns === 4 ? 'default' : 'outline'}
+                      onClick={() => handleLayoutChange('columns', 4)}
+                      className="flex-1"
+                    >
+                      4 Col
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -461,8 +466,38 @@ const InspectorV2: React.FC = () => {
             <label className="text-sm font-medium mb-3 block">Color</label>
             <ColorPalette
               selectedColor={localField.styling.color}
-              onColorChange={handleColorChange}
+              onColorChange={(color) => updateLocalStyling({ color })}
             />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-3 block">Width</label>
+            <div className="flex justify-stretch gap-2">
+              <Button
+                size="sm"
+                variant={localField.styling.width === 'compact' ? 'default' : 'outline'}
+                onClick={() => updateLocalStyling({ width: 'compact' })}
+                className="flex-1"
+              >
+                Compact
+              </Button>
+              <Button
+                size="sm"
+                variant={localField.styling.width === 'normal' || !localField.styling.width ? 'default' : 'outline'}
+                onClick={() => updateLocalStyling({ width: 'normal' })}
+                className="flex-1"
+              >
+                Normal
+              </Button>
+              <Button
+                size="sm"
+                variant={localField.styling.width === 'wide' ? 'default' : 'outline'}
+                onClick={() => updateLocalStyling({ width: 'wide' })}
+                className="flex-1"
+              >
+                Wide
+              </Button>
+            </div>
           </div>
         </div>
 

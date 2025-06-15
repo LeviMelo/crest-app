@@ -19,16 +19,20 @@ export interface ValidationRule {
 }
 
 export interface FieldOptions {
-  placeholder?: string;
   unit?: string;
   choices?: { value: string; label: string }[];
-  displayAs?: 'radio' | 'dropdown' | 'checkboxGroup' | 'slider' | 'stepper' | 'checkbox';
+  displayAs?: 'radio' | 'dropdown' | 'checkboxGroup' | 'slider' | 'stepper' | 'checkbox' | 'switch';
   enabledInputs?: string[];
+  layout?: {
+    style: 'auto' | 'columns';
+    columns?: number;
+  };
   [key: string]: any;
 }
 
 export interface FieldStyling {
   color: string;
+  width?: 'compact' | 'normal' | 'wide';
   size?: 'sm' | 'md' | 'lg';
   [key: string]: any;
 }
@@ -55,7 +59,6 @@ export interface Section {
   id: string;
   title: string;
   fields: string[]; // Field IDs
-  columns: number;
   collapsed: boolean;
   styling: SectionStyling;
 }
@@ -152,12 +155,12 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
     description: '',
     required: false,
     validation: [],
-    styling: { color: 'primary' }
+    styling: { color: 'primary', width: 'normal' as const }
   };
 
   switch (type) {
     case 'text':
-      return { ...base, options: { placeholder: 'Enter text...' }, defaultValue: '' };
+      return { ...base, options: {}, defaultValue: '' };
     case 'number':
       return { ...base, options: { unit: '', enabledInputs: ['input'] }, defaultValue: 0 };
     case 'boolean':
@@ -170,7 +173,8 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
             { value: 'option_1', label: 'Option 1' },
             { value: 'option_2', label: 'Option 2' }
           ],
-          displayAs: 'radio'
+          displayAs: 'radio',
+          layout: { style: 'auto' }
         },
         defaultValue: 'option_1'
       };
@@ -182,7 +186,8 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
             { value: 'option_1', label: 'Option 1' },
             { value: 'option_2', label: 'Option 2' }
           ],
-          displayAs: 'checkboxGroup'
+          displayAs: 'checkboxGroup',
+          layout: { style: 'auto' }
         },
         defaultValue: ['option_1']
       };
@@ -378,7 +383,6 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
             id: generateId('section'),
             title: 'Main Section',
             fields: [newField.id],
-            columns: 1,
             collapsed: false,
             styling: { color: 'secondary' }
           };
@@ -479,26 +483,27 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
     set(produce((state: FormBuilderState) => {
       if (!state.currentForm) return;
 
-      const originalField = state.currentForm.fields.find(f => f.id === fieldId);
-      if (originalField) {
-        const duplicatedField: Field = {
-          ...structuredClone(originalField),
-          id: generateId('field'),
-          label: `${originalField.label} (Copy)`
-        };
+      const { fields, layout: { sections } } = state.currentForm;
 
-        state.currentForm.fields.push(duplicatedField);
+      const fieldToDuplicate = fields.find((f: Field) => f.id === fieldId);
+      const sectionContainingField = sections.find((s: Section) => s.fields.includes(fieldId));
 
-        // Add to same section as original
-        const section = state.currentForm.layout.sections.find(s => s.fields.includes(fieldId));
-        if (section) {
-          const originalIndex = section.fields.indexOf(fieldId);
-          section.fields.splice(originalIndex + 1, 0, duplicatedField.id);
-        }
+      if (!fieldToDuplicate || !sectionContainingField) return;
 
-        state.selectedFieldId = duplicatedField.id;
-        state.currentForm.updatedAt = new Date();
-      }
+      const newField: Field = {
+        ...fieldToDuplicate,
+        id: generateId(fieldToDuplicate.type),
+      };
+
+      // Add new field to the main fields array
+      fields.push(newField);
+
+      // Add new field to the section, right after the original
+      const originalFieldIndex = sectionContainingField.fields.indexOf(fieldId);
+      sectionContainingField.fields.splice(originalFieldIndex + 1, 0, newField.id);
+      
+      // Select the new field
+      state.selectedFieldId = newField.id;
     }));
   },
 
@@ -508,7 +513,6 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
       id: generateId('section'),
       title: 'New Section',
       fields: [],
-      columns: 1,
       collapsed: false,
       styling: { color: 'secondary' }
     };

@@ -13,6 +13,9 @@ import Stepper from '@/components/ui/Stepper';
 import { DndContext, closestCenter, DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Switch } from '@/components/ui/Switch';
+import { Combobox } from '@/components/ui/Combobox';
+import { Input } from '@/components/ui/Input';
 
 // Field preview component that shows how the field will look
 const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
@@ -22,51 +25,115 @@ const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
     updateFieldDefaultValue(field.id, value);
   };
 
+  const RequiredBadge = () => field.required ? (
+    <div className="text-xs font-semibold uppercase bg-destructive/10 text-destructive rounded-full px-2 py-0.5">
+      Required
+    </div>
+  ) : null;
+
+  const getChoiceGroupLayoutClasses = () => {
+    const layout = field.options.layout || { style: 'auto' };
+    if (layout.style === 'columns' && layout.columns) {
+      return `grid grid-cols-${layout.columns} gap-x-6 gap-y-2 pt-1`;
+    }
+    // Default to 'auto'
+    return "flex flex-wrap gap-x-6 gap-y-2 pt-1";
+  };
+
   const getFieldPreview = () => {
     switch (field.type) {
       case 'text':
+      case 'date':
         return (
-          <InputField
-            id={`preview-${field.id}`}
-            label={field.label}
-            subtitle={field.description}
-            placeholder={field.options.placeholder || 'Enter text...'}
-            value={field.defaultValue || ''}
-            onChange={(e) => handleValueChange(e.target.value)}
-          />
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">{field.label}</label>
+              <RequiredBadge />
+            </div>
+            {field.description && <p className="text-xs text-muted-foreground -mt-1">{field.description}</p>}
+            
+            {field.type === 'text' && <Input type="text" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />}
+            {field.type === 'date' && <Input type="date" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />}
+          </div>
         );
       case 'number':
-        const enabledInputs = field.options.enabledInputs || [];
+        const enabledInputs = field.options.enabledInputs || ['input'];
+        const value = field.defaultValue || 0;
+        const minRule = field.validation?.find(r => r.type === 'min');
+        const maxRule = field.validation?.find(r => r.type === 'max');
+        const min = minRule ? Number(minRule.value) : undefined;
+        const max = maxRule ? Number(maxRule.value) : undefined;
+
         return (
-          <div className="space-y-3">
-            <InputField
-              id={`preview-${field.id}`}
-              label={field.label}
-              subtitle={field.description}
-              type="number"
-              placeholder="0"
-              addon={field.options.unit}
-              value={field.defaultValue || 0}
-              onChange={(e) => handleValueChange(e.target.valueAsNumber)}
-            />
-            <div className="flex items-center gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">{field.label}</label>
+              <RequiredBadge />
+            </div>
+            {field.description && <p className="text-xs text-muted-foreground -mt-1">{field.description}</p>}
+            
+            <div className="space-y-3 pt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                {enabledInputs.includes('input') && (
+                  <div className="relative w-full sm:w-40">
+                    <Input
+                      type="number"
+                      value={value}
+                      onChange={(e) => handleValueChange(e.target.valueAsNumber)}
+                      min={min}
+                      max={max}
+                      className={cn(field.options.unit ? "pr-12" : "")}
+                    />
+                    {field.options.unit && (
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <span className="text-muted-foreground sm:text-sm">{field.options.unit}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {enabledInputs.includes('stepper') && (
+                  <Stepper
+                    value={value}
+                    onValueChange={handleValueChange}
+                    min={min}
+                    max={max}
+                  />
+                )}
+              </div>
               {enabledInputs.includes('slider') && (
                 <Slider
-                  value={[field.defaultValue || 0]}
+                  value={[value]}
                   onValueChange={(vals) => handleValueChange(vals[0])}
-                  className="w-full"
-                />
-              )}
-              {enabledInputs.includes('stepper') && (
-                <Stepper
-                  value={field.defaultValue || 0}
-                  onValueChange={handleValueChange}
+                  min={min}
+                  max={max}
+                  step={1}
                 />
               )}
             </div>
           </div>
         );
       case 'boolean':
+        if (field.options.displayAs === 'switch') {
+          return (
+            <div className="flex items-start space-x-3 p-2">
+              <Switch
+                id={`preview-${field.id}`}
+                checked={field.defaultValue || false}
+                onCheckedChange={(checked: boolean) => handleValueChange(checked)}
+                className="mt-1"
+              />
+              <div className="grid gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor={`preview-${field.id}`} className="font-medium leading-none">
+                    {field.label}
+                  </label>
+                  <RequiredBadge />
+                </div>
+                {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
+              </div>
+            </div>
+          );
+        }
         return (
           <div className="flex items-start space-x-3 p-2">
             <Checkbox
@@ -76,10 +143,13 @@ const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
               className="mt-1"
             />
             <div className="grid gap-1.5">
+              <div className="flex items-center justify-between">
                 <label htmlFor={`preview-${field.id}`} className="font-medium leading-none">
-                    {field.label}
+                  {field.label}
                 </label>
-                {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
+                <RequiredBadge />
+              </div>
+              {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
             </div>
           </div>
         );
@@ -88,12 +158,17 @@ const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
         if (field.options.displayAs === 'radio') {
           return (
             <fieldset>
-              <legend className="text-sm font-medium truncate mb-1">{field.label}</legend>
+              <div className="flex items-center justify-between mb-1">
+                <legend className="text-sm font-medium truncate">
+                  {field.label}
+                </legend>
+                <RequiredBadge />
+              </div>
               {field.description && <p className="text-xs text-muted-foreground mb-2">{field.description}</p>}
               <RadioGroup
                 value={field.defaultValue}
                 onValueChange={handleValueChange}
-                className="space-y-2"
+                className={getChoiceGroupLayoutClasses()}
               >
                 {singleChoices.map((choice) => (
                   <div key={choice.value} className="flex items-center space-x-2">
@@ -106,23 +181,24 @@ const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
           );
         } else { // Dropdown
           return (
-            <div className="space-y-1.5">
-              <label htmlFor={`preview-${field.id}`} className="text-sm font-medium">{field.label}</label>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor={`preview-${field.id}`} className="text-sm font-medium">
+                  {field.label}
+                </label>
+                <RequiredBadge />
+              </div>
               {field.description && <p className="text-xs text-muted-foreground -mt-1">{field.description}</p>}
-              <Select value={field.defaultValue} onValueChange={handleValueChange}>
-                <SelectTrigger id={`preview-${field.id}`}>
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {singleChoices.map((choice) => (
-                    <SelectItem key={choice.value} value={choice.value}>
-                      {choice.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={singleChoices}
+                value={field.defaultValue}
+                onChange={handleValueChange}
+                placeholder="Select an option..."
+                searchPlaceholder="Search options..."
+                notFoundText="No matching options."
+              />
             </div>
-          );
+          )
         }
       case 'multiple-choice':
         const multiChoices = field.options.choices || [];
@@ -130,9 +206,14 @@ const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
 
         return (
           <fieldset>
-            <legend className="text-sm font-medium truncate mb-1">{field.label}</legend>
+            <div className="flex items-center justify-between mb-1">
+              <legend className="text-sm font-medium truncate">
+                {field.label}
+              </legend>
+              <RequiredBadge />
+            </div>
             {field.description && <p className="text-xs text-muted-foreground mb-2">{field.description}</p>}
-            <div className="space-y-2">
+            <div className={getChoiceGroupLayoutClasses()}>
               {multiChoices.map((choice) => (
                 <div key={choice.value} className="flex items-center space-x-2">
                   <Checkbox
@@ -154,21 +235,10 @@ const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
             </div>
           </fieldset>
         );
-      case 'date':
-        return (
-          <InputField
-            id={`preview-${field.id}`}
-            label={field.label}
-            subtitle={field.description}
-            type="date"
-            value={field.defaultValue || ''}
-            onChange={(e) => handleValueChange(e.target.value)}
-          />
-        );
       default:
         return (
-          <div className="p-2 text-sm text-muted-foreground">
-            Unknown field type: {field.type}
+          <div className="p-2 border-dashed border-destructive bg-destructive/10 text-destructive text-xs rounded-md">
+            Unhandled Field Type: <strong>{field.type}</strong>
           </div>
         );
     }
@@ -208,6 +278,13 @@ const FieldComponent: React.FC<{ fieldId: string; sectionId: string }> = ({ fiel
 
   const isSelected = selectedFieldId === fieldId;
 
+  // Define width classes based on field styling
+  const widthClass = {
+    compact: 'flex-[1_1_200px] max-w-xs',
+    normal: 'flex-[2_1_320px] max-w-md',
+    wide: 'flex-[3_1_450px] max-w-lg',
+  }[field.styling.width || 'normal'];
+
   return (
     <div
       ref={setNodeRef}
@@ -217,7 +294,8 @@ const FieldComponent: React.FC<{ fieldId: string; sectionId: string }> = ({ fiel
         selectField(fieldId);
       }}
       className={cn(
-        "bg-card border-2 rounded-lg shadow-sm relative group transition-all",
+        "bg-card border-2 rounded-lg shadow-sm relative group transition-all flex flex-col",
+        widthClass, // Apply responsive width class
         isSelected ? 'border-primary shadow-lg' : 'border-transparent hover:border-slate-400 dark:hover:border-slate-600',
         field.styling.color === 'primary' && 'border-primary/50 bg-primary/5',
         field.styling.color === 'secondary' && 'border-slate-500/50 bg-slate-500/5',
@@ -227,7 +305,7 @@ const FieldComponent: React.FC<{ fieldId: string; sectionId: string }> = ({ fiel
         field.styling.color === 'danger' && 'border-red-500/50 bg-red-500/5'
       )}
     >
-      <div className="flex items-start">
+      <div className="flex items-start flex-grow">
         {/* Drag handle */}
         <div 
           {...attributes} 
@@ -245,28 +323,30 @@ const FieldComponent: React.FC<{ fieldId: string; sectionId: string }> = ({ fiel
           <FieldPreview field={field} />
         </div>
         
-        {/* Action buttons */}
-        <div className="p-1 self-start flex gap-1">
-          {isSelected && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                duplicateField(fieldId);
-              }}
-              className="hidden sm:flex"
-            >
-              <PiCopy className="w-4 h-4" />
-            </Button>
-          )}
+        {/* Action buttons - always rendered, visibility controlled by opacity */}
+        <div className={cn(
+            "p-1 self-start flex flex-col gap-0.5 transition-opacity duration-200",
+            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+        )}>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              duplicateField(fieldId);
+            }}
+            className="h-7 w-7"
+          >
+            <PiCopy className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={(e) => {
               e.stopPropagation();
               removeField(fieldId);
             }}
+            className="h-7 w-7 text-destructive/80 hover:text-destructive hover:bg-destructive/10"
           >
             <PiTrash className="w-4 h-4" />
           </Button>
@@ -335,9 +415,14 @@ const SectionComponent: React.FC<{ sectionId: string }> = ({ sectionId }) => {
     }
   };
 
+  const setCombinedRef = (node: HTMLElement | null) => {
+    sortableRef(node);
+    droppableRef(node);
+  };
+
   return (
     <div
-      ref={sortableRef}
+      ref={setCombinedRef}
       style={style}
       onClick={(e) => {
         e.stopPropagation();
@@ -418,19 +503,13 @@ const SectionComponent: React.FC<{ sectionId: string }> = ({ sectionId }) => {
       {/* Section content - only show when not collapsed */}
       {!isCollapsed && (
         <div 
-          ref={droppableRef}
           className={cn(
             "p-3 sm:p-4 transition-colors",
             isOver && "bg-primary/10"
           )}
         >
           <SortableContext items={section.fields} strategy={verticalListSortingStrategy}>
-            <div className={cn(
-              "grid gap-3 sm:gap-4",
-              section.columns === 1 && "grid-cols-1",
-              section.columns === 2 && "grid-cols-1 md:grid-cols-2",
-              section.columns === 3 && "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-            )}>
+            <div className="flex flex-wrap gap-3 sm:gap-4">
               {section.fields.length > 0 ? (
                 section.fields.map(fieldId => (
                   <FieldComponent key={fieldId} fieldId={fieldId} sectionId={sectionId} />
