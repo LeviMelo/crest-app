@@ -62,6 +62,7 @@ const fieldTypes: FieldTypeButton[] = [
     icon: PiCalendarDuotone,
     description: 'Date picker input'
   },
+  /*
   {
     type: 'autocomplete-multiple',
     label: 'Autocomplete (Multi)',
@@ -69,6 +70,7 @@ const fieldTypes: FieldTypeButton[] = [
     icon: PiSparkleDuotone,
     description: 'Select from a list or add custom tags'
   }
+  */
 ];
 
 const ToolboxV2: React.FC = () => {

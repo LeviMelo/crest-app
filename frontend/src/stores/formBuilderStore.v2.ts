@@ -10,8 +10,7 @@ export type FieldType =
   | 'boolean'
   | 'single-choice'
   | 'multiple-choice'
-  | 'date'
-  | 'autocomplete-multiple';
+  | 'date';
 
 export interface ValidationRule {
   type: 'required' | 'min' | 'max' | 'pattern';
@@ -23,6 +22,7 @@ export interface FieldOptions {
   unit?: string;
   choices?: { value: string; label: string; color?: string }[];
   displayAs?: 'radio' | 'dropdown' | 'checkboxGroup' | 'slider' | 'stepper' | 'checkbox' | 'switch' | 'button-group';
+  variant?: 'text' | 'autocomplete'; // For text fields
   enabledInputs?: string[];
   layout?: {
     style: 'auto' | 'columns';
@@ -170,7 +170,7 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
 
   switch (type) {
     case 'text':
-      return { ...base, defaultValue: '' };
+      return { ...base, defaultValue: '', options: { ...base.options, variant: 'text', placeholder: '' } };
     case 'number':
       return { ...base, options: { ...base.options, unit: '', enabledInputs: ['input'] }, defaultValue: { toggled: false, value: 0 } };
     case 'boolean':
@@ -204,18 +204,6 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
           textFallback: false
         },
         defaultValue: { toggled: false, value: ['option_1'] }
-      };
-    case 'autocomplete-multiple':
-      return {
-        ...base,
-        options: { 
-          choices: [
-            { value: 'icd_g40', label: 'G40 - Epilepsy' },
-            { value: 'icd_j45', label: 'J45 - Asthma' }
-          ],
-          placeholder: 'Type or select...'
-        },
-        defaultValue: { selected: [], custom: [] }
       };
     case 'date':
       return { ...base, defaultValue: '' };

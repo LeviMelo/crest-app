@@ -438,6 +438,40 @@ const InspectorV2: React.FC = () => {
             <span className="sm:hidden">Options</span>
           </h4>
           
+          {localField.type === 'text' && (
+            <div className="space-y-4">
+              <div>
+                <Label>Variant</Label>
+                <Select
+                    value={localField.options.variant || 'text'}
+                    onValueChange={(value: 'text' | 'autocomplete') => updateLocalOptions({ variant: value, defaultValue: value === 'autocomplete' ? { selected: [], custom: []} : '' })}
+                >
+                    <SelectTrigger className="mt-1">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="text">Plain Text</SelectItem>
+                        <SelectItem value="autocomplete">Autocomplete (Tags)</SelectItem>
+                    </SelectContent>
+                </Select>
+              </div>
+
+              <InputField
+                id="text-placeholder"
+                label="Placeholder Text"
+                value={localField.options.placeholder || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateLocalOptions({ placeholder: e.target.value })}
+              />
+
+              {localField.options.variant === 'autocomplete' && (
+                 <ChoiceEditor
+                    choices={localField.options.choices || []}
+                    onChange={handleChoicesChange}
+                  />
+              )}
+            </div>
+          )}
+
           {localField.type === 'number' && (
             <div className="space-y-3">
               <InputField
@@ -610,21 +644,6 @@ const InspectorV2: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {localField.type === 'autocomplete-multiple' && (
-            <div className="space-y-4">
-              <ChoiceEditor
-                choices={localField.options.choices || []}
-                onChange={handleChoicesChange}
-              />
-              <InputField
-                id="ac-placeholder"
-                label="Placeholder Text"
-                value={localField.options.placeholder || ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateLocalOptions({ placeholder: e.target.value })}
-              />
             </div>
           )}
         </div>

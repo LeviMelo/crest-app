@@ -91,7 +91,7 @@ const FieldPreview: React.FC<{ fieldId: string }> = ({ fieldId }) => {
         }
         
         // Fallback for dropdown
-        return (
+  return (
             <div className="space-y-1.5 pointer-events-none opacity-70">
                 <label className="text-sm font-medium">{fieldSchema.title}</label>
                 <Select disabled>
@@ -99,8 +99,8 @@ const FieldPreview: React.FC<{ fieldId: string }> = ({ fieldId }) => {
                         <SelectValue placeholder={choices[0]?.label || 'Select...'} />
                     </SelectTrigger>
                 </Select>
-            </div>
-        );
+    </div>
+  );
       default: // TextWidget and others
         return <InputField id={fieldId} label={fieldSchema.title} placeholder={options.placeholder} disabled className="pointer-events-none opacity-70" />;
     }

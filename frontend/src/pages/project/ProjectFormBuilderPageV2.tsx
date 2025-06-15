@@ -90,7 +90,7 @@ const ProjectFormBuilderPageV2: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full">
       <PageHeader
         title="Form Builder V2"
         subtitle={currentForm ? currentForm.name : 'Design and configure your dynamic data collection forms for this project.'}
@@ -117,18 +117,12 @@ const ProjectFormBuilderPageV2: React.FC = () => {
             <span className="hidden sm:inline">New Form</span>
           </Button>
           <Button variant="outline" onClick={() => setIsJsonEditorOpen(!isJsonEditorOpen)} disabled={!currentForm}>
-              <PiCode className="mr-2" />
-              {isJsonEditorOpen ? 'Hide' : 'View'} JSON
+            <PiCode className="mr-2" />
+            {isJsonEditorOpen ? 'Hide' : 'View'} JSON
           </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={isSaving || !currentForm}
-            variant="gradient"
-            size="sm"
-          >
-            <PiFloppyDiskDuotone className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save Form'}</span>
-            <span className="sm:hidden">{isSaving ? '...' : 'Save'}</span>
+          <Button onClick={handleSave} disabled={isSaving || !currentForm}>
+            <PiFloppyDiskDuotone className="mr-2" />
+            {isSaving ? 'Saving...' : 'Save Form'}
           </Button>
         </div>
       </PageHeader>
@@ -179,60 +173,55 @@ const ProjectFormBuilderPageV2: React.FC = () => {
         </Card>
       )}
 
-      {/* Main builder content */}
-      <div className="flex-grow flex flex-col min-h-0 relative">
+      {/* Main Builder UI */}
+      <div className="grid grid-cols-12 gap-x-6 px-6 pb-6 flex-grow items-start min-h-0">
         
-        {/* Top Fixed Toolbox (Desktop) */}
-        <div className="hidden lg:block absolute top-0 left-0 right-0 z-20">
-           <ToolboxV2 />
+        {/* Left Column: Toolbox + Canvas */}
+        <div className="col-span-12 lg:col-span-8 xl:col-span-9 h-full flex flex-col gap-6">
+          <div className="sticky top-[calc(var(--header-height)+1.5rem)] z-20 -mx-6 px-6">
+            <ToolboxV2 />
+          </div>
+          <div className="flex-grow min-h-0">
+             <CanvasV2 />
+          </div>
+        </div>
+        
+        {/* Right Column: Inspector */}
+        <div className="hidden lg:block lg:col-span-4 xl:col-span-3 h-full">
+          <div className="sticky top-[calc(var(--header-height)+1.5rem)] z-10 h-[calc(100vh-var(--header-height)-3rem)] overflow-y-auto">
+            <InspectorV2 />
+          </div>
         </div>
 
-        {/* Mobile: Use tabs as before */}
-        <div className="lg:hidden p-4">
-            {/* ... mobile tab switching logic ... */}
-        </div>
-
-        {/* Main Content: Canvas + Inspector (Desktop) */}
-        <div className="hidden lg:grid grid-cols-12 gap-6 flex-grow min-h-0 items-start px-6 pb-6">
-            <div className="col-span-8 xl:col-span-9 h-full min-h-0 overflow-y-auto pt-[90px]"> {/* pt to offset toolbox */}
-                <CanvasV2 />
-            </div>
-            <div className="col-span-4 xl:col-span-3 h-full overflow-y-auto">
-                 <div className="sticky top-0 pt-[90px]"> {/* pt to offset toolbox */}
-                     <InspectorV2 />
-                 </div>
-            </div>
-        </div>
       </div>
 
-      {/* JSON Editor remains at the bottom */}
       <AnimatePresence>
-        {isJsonEditorOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="flex-shrink-0 overflow-hidden"
-          >
-            <div className="mt-6 border-t pt-4">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-semibold">Live JSON Editor</h3>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={handleResetJson}>Reset</Button>
-                  <Button size="sm" onClick={handleApplyJson}>Apply JSON</Button>
-                </div>
-              </div>
-              <div className="h-96">
-                <JsonEditor
-                  jsonString={jsonString}
-                  onJsonChange={setJsonString}
-                  readOnly={false}
-                />
+      {isJsonEditorOpen && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex-shrink-0 overflow-hidden"
+        >
+          <div className="mt-6 border-t pt-4">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold">Live JSON Editor</h3>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={handleResetJson}>Reset</Button>
+                <Button size="sm" onClick={handleApplyJson}>Apply JSON</Button>
               </div>
             </div>
-          </motion.div>
-        )}
+            <div className="h-96">
+              <JsonEditor
+                jsonString={jsonString}
+                onJsonChange={setJsonString}
+                readOnly={false}
+              />
+            </div>
+          </div>
+        </motion.div>
+      )}
       </AnimatePresence>
     </div>
   );

@@ -129,13 +129,9 @@ const FieldPreview: React.FC<{ field: Field; fontSize?: FontSize }> = ({ field, 
               checked={isToggled}
               onCheckedChange={handleToggle}
             />
-            <div className="flex-1 flex items-baseline min-w-0">
-              <label htmlFor={`toggle-${field.id}`} className={cn("font-medium", labelClasses, "cursor-pointer truncate")}>
-                {field.label}
-              </label>
-              {!isToggled && renderCollapsedValue()}
-            </div>
-            <RequiredBadge />
+            <label htmlFor={`toggle-${field.id}`} className={cn("font-medium flex-1", labelClasses, "cursor-pointer truncate")}>
+              {field.label}
+            </label>
           </div>
           <AnimatePresence>
             {isToggled && (
@@ -144,10 +140,13 @@ const FieldPreview: React.FC<{ field: Field; fontSize?: FontSize }> = ({ field, 
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
-                className="overflow-hidden pl-7"
+                className="overflow-hidden pl-10"
               >
-                <div className="pt-2">
-                  {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+                <div className="pt-2 pb-1 space-y-2">
+                   <div className="flex justify-between items-start">
+                      {field.description && <p className={cn("text-muted-foreground max-w-prose", descriptionClasses)}>{field.description}</p>}
+                      <RequiredBadge />
+                   </div>
                   <FieldRenderer field={tempField} fontSize={fontSize} onValueChange={onRendererValueChange} showLabel={false} />
                 </div>
               </motion.div>
@@ -157,7 +156,7 @@ const FieldPreview: React.FC<{ field: Field; fontSize?: FontSize }> = ({ field, 
       );
     }
     
-    return <FieldRenderer field={tempField} fontSize={fontSize} onValueChange={onRendererValueChange} showLabel={true} />
+    return <FieldRenderer field={field} fontSize={fontSize} onValueChange={handleValueChange} showLabel={true} />
   };
 
   return <div className="p-3">{getFieldPreview()}</div>;
@@ -228,6 +227,50 @@ const FieldRenderer: React.FC<{
 
   switch (field.type) {
     case 'text':
+      if (field.options.variant === 'autocomplete') {
+        return (
+          <fieldset>
+            {showLabel && (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <legend className={cn("font-medium truncate", labelClasses)}>
+                    {field.label}
+                  </legend>
+                  <RequiredBadge />
+                </div>
+                {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+              </>
+            )}
+            <MultiAutocompleteInput
+              options={field.options.choices || []}
+              value={field.defaultValue || { selected: [], custom: [] }}
+              onChange={handleValueChange}
+              placeholder={field.options.placeholder}
+              color={field.styling.color}
+            />
+          </fieldset>
+        );
+      }
+      // Default to plain text input
+      return (
+        <div className="space-y-1.5">
+          {showLabel && (
+            <>
+              <div className="flex items-center justify-between">
+                <label className={cn("font-medium", labelClasses)}>{field.label}</label>
+                <RequiredBadge />
+              </div>
+              {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+            </>
+          )}
+          <Input 
+            type="text" 
+            value={field.defaultValue || ''} 
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} 
+            placeholder={field.options.placeholder || ''}
+          />
+        </div>
+      );
     case 'date':
       return (
         <div className="space-y-1.5">
@@ -240,9 +283,7 @@ const FieldRenderer: React.FC<{
               {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
             </>
           )}
-          
-          {field.type === 'text' && <Input type="text" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />}
-          {field.type === 'date' && <Input type="date" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />}
+          <Input type="date" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />
         </div>
       );
     case 'number':
@@ -564,29 +605,6 @@ const FieldRenderer: React.FC<{
         </fieldset>
       );
     }
-    case 'autocomplete-multiple':
-      return (
-        <fieldset>
-          {showLabel && (
-            <>
-              <div className="flex items-center justify-between mb-1">
-                <legend className={cn("font-medium truncate", labelClasses)}>
-                  {field.label}
-                </legend>
-                <RequiredBadge />
-              </div>
-              {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
-            </>
-          )}
-          <MultiAutocompleteInput
-            options={field.options.choices || []}
-            value={field.defaultValue || { selected: [], custom: [] }}
-            onChange={handleValueChange}
-            placeholder={field.options.placeholder}
-            color={field.styling.color}
-          />
-        </fieldset>
-      );
     default:
       return (
         <div className="p-2 border-dashed border-destructive bg-destructive/10 text-destructive text-xs rounded-md">
