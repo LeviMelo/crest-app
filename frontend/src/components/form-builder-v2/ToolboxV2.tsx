@@ -8,11 +8,11 @@ import {
   PiListNumbers, 
   PiListDashes, 
   PiCalendarDuotone,
-  PiSparkleDuotone
+  PiLayoutDuotone
 } from 'react-icons/pi';
 
 interface FieldTypeButton {
-  type: FieldType;
+  type: FieldType | 'section';
   label: string;
   shortLabel?: string; // For mobile
   icon: React.ComponentType<any>;
@@ -74,11 +74,15 @@ const fieldTypes: FieldTypeButton[] = [
 ];
 
 const ToolboxV2: React.FC = () => {
-  const { addField, currentForm } = useFormBuilderStoreV2();
+  const { addField, addSection, currentForm } = useFormBuilderStoreV2();
 
-  const handleAddField = (type: FieldType) => {
+  const handleAdd = (type: FieldType | 'section') => {
     if (currentForm) {
-      addField(type);
+      if (type === 'section') {
+        addSection();
+      } else {
+        addField(type);
+      }
     }
   };
 
@@ -89,7 +93,7 @@ const ToolboxV2: React.FC = () => {
             <Button
               key={fieldType.type}
               variant="ghost"
-              onClick={() => handleAddField(fieldType.type)}
+              onClick={() => handleAdd(fieldType.type)}
               disabled={!currentForm}
               className="h-auto p-3 flex flex-col items-center justify-center text-center hover:bg-primary/10 transition-all active:scale-95 aspect-square w-20"
             >
@@ -99,6 +103,18 @@ const ToolboxV2: React.FC = () => {
               </div>
             </Button>
           ))}
+          <Button
+            key="section"
+            variant="ghost"
+            onClick={() => handleAdd('section')}
+            disabled={!currentForm}
+            className="h-auto p-3 flex flex-col items-center justify-center text-center hover:bg-primary/10 transition-all active:scale-95 aspect-square w-20"
+          >
+            <PiLayoutDuotone className="w-6 h-6 mb-1 text-primary" />
+            <div className="font-medium text-[11px] leading-tight">
+              Section
+            </div>
+          </Button>
         </div>
     </div>
   );

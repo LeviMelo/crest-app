@@ -15,44 +15,44 @@ import { Label } from '@/components/ui/Label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
 import { HexColorPicker } from 'react-colorful';
 
-// Expanded color palette configuration
+// Expanded color palette configuration with HEX values for direct styling
 const COLOR_PALETTE = [
-  { name: 'primary', label: 'Primary', className: 'bg-primary hover:bg-primary/80', borderClass: 'border-primary' },
-  { name: 'secondary', label: 'Secondary', className: 'bg-slate-500 hover:bg-slate-600', borderClass: 'border-slate-500' },
-  { name: 'accent', label: 'Accent', className: 'bg-amber-500 hover:bg-amber-600', borderClass: 'border-amber-500' },
-  { name: 'success', label: 'Success', className: 'bg-emerald-500 hover:bg-emerald-600', borderClass: 'border-emerald-500' },
-  { name: 'warning', label: 'Warning', className: 'bg-orange-500 hover:bg-orange-600', borderClass: 'border-orange-500' },
-  { name: 'danger', label: 'Danger', className: 'bg-red-500 hover:bg-red-600', borderClass: 'border-red-500' },
-  // Adding more colors
-  { name: 'blue', label: 'Blue', className: 'bg-blue-500 hover:bg-blue-600', borderClass: 'border-blue-500' },
-  { name: 'indigo', label: 'Indigo', className: 'bg-indigo-500 hover:bg-indigo-600', borderClass: 'border-indigo-500' },
-  { name: 'purple', label: 'Purple', className: 'bg-purple-500 hover:bg-purple-600', borderClass: 'border-purple-500' },
-  { name: 'pink', label: 'Pink', className: 'bg-pink-500 hover:bg-pink-600', borderClass: 'border-pink-500' },
-  { name: 'teal', label: 'Teal', className: 'bg-teal-500 hover:bg-teal-600', borderClass: 'border-teal-500' },
-  { name: 'cyan', label: 'Cyan', className: 'bg-cyan-500 hover:bg-cyan-600', borderClass: 'border-cyan-500' },
+  { value: '#3b82f6', label: 'Blue' },
+  { value: '#6366f1', label: 'Indigo' },
+  { value: '#8b5cf6', label: 'Purple' },
+  { value: '#ec4899', label: 'Pink' },
+  { value: '#ef4444', label: 'Red' },
+  { value: '#f97316', label: 'Orange' },
+  { value: '#f59e0b', label: 'Amber' },
+  { value: '#10b981', label: 'Emerald' },
+  { value: '#14b8a6', label: 'Teal' },
+  { value: '#06b6d4', label: 'Cyan' },
+  { value: '#64748b', label: 'Slate' },
+  { value: '#fefefe', label: 'White' },
 ];
 
 const ColorPalette: React.FC<{
   selectedColor: string;
   onColorChange: (color: string) => void;
 }> = ({ selectedColor, onColorChange }) => {
-  const isCustomColor = selectedColor && !COLOR_PALETTE.some(p => p.name === selectedColor);
+  const isCustomColor = selectedColor && !COLOR_PALETTE.some(p => p.value.toLowerCase() === selectedColor.toLowerCase());
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-6 gap-px bg-border rounded-md overflow-hidden border">
+      <div className="grid grid-cols-6 gap-2">
         {COLOR_PALETTE.map((color) => (
           <button
-            key={color.name}
+            key={color.value}
             type="button"
-            onClick={() => onColorChange(color.name)}
+            onClick={() => onColorChange(color.value)}
             className={cn(
-              "w-full aspect-square transition-all",
-              color.className,
-              selectedColor === color.name
-                ? `ring-2 ring-offset-1 ring-offset-background ring-primary`
-                : 'hover:scale-110'
+              "w-full aspect-square transition-all rounded-md border-2",
+              selectedColor?.toLowerCase() === color.value.toLowerCase()
+                ? `ring-2 ring-offset-2 ring-primary ring-offset-background`
+                : 'hover:scale-110',
+               color.value === '#fefefe' ? 'border-muted' : 'border-transparent'
             )}
+            style={{ backgroundColor: color.value }}
             title={color.label}
           />
         ))}
@@ -64,17 +64,17 @@ const ColorPalette: React.FC<{
              <div className="flex items-center gap-2">
                 <div
                   className="w-5 h-5 rounded border"
-                  style={{ backgroundColor: isCustomColor ? selectedColor : 'hsl(var(--muted))' }}
+                  style={{ backgroundColor: selectedColor || 'hsl(var(--muted))' }}
                 />
-                <span className={cn(!isCustomColor && "text-muted-foreground")}>
-                  {isCustomColor ? selectedColor.toUpperCase() : 'Custom...'}
+                <span className={cn(!selectedColor && "text-muted-foreground")}>
+                  {selectedColor ? selectedColor.toUpperCase() : 'Custom...'}
                 </span>
              </div>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0 border-none">
             <HexColorPicker
-              color={isCustomColor ? selectedColor : '#aabbcc'}
+              color={selectedColor || '#aabbcc'}
               onChange={onColorChange}
             />
         </PopoverContent>
@@ -603,46 +603,69 @@ const InspectorV2: React.FC = () => {
               </div>
 
               {showChoiceLayout && (
-                <div className="pt-2 border-t">
-                  <label className="text-sm font-medium">Choice Layout</label>
-                  <div className="mt-2 flex justify-stretch gap-2">
-                    <Button
-                      size="sm"
-                      variant={layout.style === 'auto' ? 'default' : 'outline'}
-                      onClick={() => handleLayoutChange('auto')}
-                      className="flex-1"
-                    >
-                      Auto
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={isCompact}
-                      variant={layout.style === 'columns' && layout.columns === 2 ? 'default' : 'outline'}
-                      onClick={() => handleLayoutChange('columns', 2)}
-                      className="flex-1"
-                    >
-                      2 Col
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={isCompact || isNormal}
-                      variant={layout.style === 'columns' && layout.columns === 3 ? 'default' : 'outline'}
-                      onClick={() => handleLayoutChange('columns', 3)}
-                      className="flex-1"
-                    >
-                      3 Col
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled
-                      variant={layout.style === 'columns' && layout.columns === 4 ? 'default' : 'outline'}
-                      onClick={() => handleLayoutChange('columns', 4)}
-                      className="flex-1"
-                    >
-                      4 Col
-                    </Button>
+                <>
+                  <div className="pt-2 border-t">
+                    <label className="text-sm font-medium">Choice Layout</label>
+                    <div className="mt-2 flex justify-stretch gap-2">
+                      <Button
+                        size="sm"
+                        variant={layout.style === 'auto' ? 'default' : 'outline'}
+                        onClick={() => handleLayoutChange('auto')}
+                        className="flex-1"
+                      >
+                        Auto
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={isCompact}
+                        variant={layout.style === 'columns' && layout.columns === 2 ? 'default' : 'outline'}
+                        onClick={() => handleLayoutChange('columns', 2)}
+                        className="flex-1"
+                      >
+                        2 Col
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={isCompact || isNormal}
+                        variant={layout.style === 'columns' && layout.columns === 3 ? 'default' : 'outline'}
+                        onClick={() => handleLayoutChange('columns', 3)}
+                        className="flex-1"
+                      >
+                        3 Col
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled
+                        variant={layout.style === 'columns' && layout.columns === 4 ? 'default' : 'outline'}
+                        onClick={() => handleLayoutChange('columns', 4)}
+                        className="flex-1"
+                      >
+                        4 Col
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                  <div className="pt-2 border-t">
+                    <label className="text-sm font-medium">Text Overflow</label>
+                    <div className="mt-2 flex justify-stretch gap-2">
+                        <Button
+                            size="sm"
+                            variant={localField.styling.textOverflow === 'wrap' ? 'default' : 'outline'}
+                            onClick={() => updateLocalStyling({ textOverflow: 'wrap' })}
+                            className="flex-1"
+                        >
+                            Wrap
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant={(localField.styling.textOverflow === 'truncate' || !localField.styling.textOverflow) ? 'default' : 'outline'}
+                            onClick={() => updateLocalStyling({ textOverflow: 'truncate' })}
+                            className="flex-1"
+                        >
+                            Truncate
+                        </Button>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           )}

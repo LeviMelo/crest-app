@@ -38,6 +38,7 @@ export interface FieldStyling {
   color: string;
   width?: 'compact' | 'normal' | 'wide';
   size?: 'sm' | 'md' | 'lg';
+  textOverflow?: 'truncate' | 'wrap';
   [key: string]: any;
 }
 
@@ -165,7 +166,7 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
       togglable: false,
       textFallback: false,
     },
-    styling: { color: 'primary', width: 'normal' as const }
+    styling: { color: 'primary', width: 'normal' as const, textOverflow: 'truncate' as const }
   };
 
   switch (type) {

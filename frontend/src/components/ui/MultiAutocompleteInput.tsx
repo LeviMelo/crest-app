@@ -1,9 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
-import { PiCheck, PiX } from 'react-icons/pi';
-import { Button } from './Button';
-import { Input } from './Input';
-import { Popover, PopoverContent, PopoverTrigger } from './Popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './Command';
+import { PiCheck, PiX, PiPlusCircleDuotone, PiCaretDown } from 'react-icons/pi';
 import { cn } from '@/lib/utils';
 
 // This is a completely new, more robust component for handling multiple selections with custom additions.
@@ -20,31 +16,18 @@ interface MultiAutocompleteInputProps {
   color?: string; // For styling the tags
 }
 
-const TAG_COLOR_MAP: { [key: string]: string } = {
-  primary: 'bg-primary/20 text-primary-foreground',
-  secondary: 'bg-slate-500/20 text-slate-800 dark:text-slate-200',
-  accent: 'bg-amber-500/20 text-amber-800 dark:text-amber-200',
-  success: 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-200',
-  warning: 'bg-orange-500/20 text-orange-800 dark:text-orange-200',
-  danger: 'bg-red-500/20 text-red-800 dark:text-red-200',
-  blue: 'bg-blue-500/20 text-blue-800 dark:text-blue-200',
-  indigo: 'bg-indigo-500/20 text-indigo-800 dark:text-indigo-200',
-  purple: 'bg-purple-500/20 text-purple-800 dark:text-purple-200',
-  pink: 'bg-pink-500/20 text-pink-800 dark:text-pink-200',
-  teal: 'bg-teal-500/20 text-teal-800 dark:text-teal-200',
-  cyan: 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-200',
-};
-
 export const MultiAutocompleteInput: React.FC<MultiAutocompleteInputProps> = ({
   options,
   value,
   onChange,
   placeholder = 'Select or create...',
-  color = 'primary',
+  color = '#3b82f6', // Default to blue
 }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [inputValue, setInputValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Ensure value is always in the correct format
   const safeValue = {
@@ -52,34 +35,113 @@ export const MultiAutocompleteInput: React.FC<MultiAutocompleteInputProps> = ({
     custom: Array.isArray(value?.custom) ? value.custom : [],
   };
 
-  const selectedValues = new Set(safeValue.selected);
+  const selectedValuesSet = new Set(safeValue.selected);
 
-  const handleUnselect = (optionValue: string) => {
-    onChange({ ...safeValue, selected: safeValue.selected.filter(v => v !== optionValue) });
+  // Filter options based on input
+  const filteredOptions = options.filter(option =>
+    option.label.toLowerCase().includes(inputValue.toLowerCase()) &&
+    !selectedValuesSet.has(option.value)
+  );
+
+  // Check if we can create a custom value
+  const canCreateCustom = inputValue.trim() && 
+    !safeValue.custom.includes(inputValue.trim()) &&
+    !options.some(opt => opt.label.toLowerCase() === inputValue.trim().toLowerCase());
+
+  const allDropdownItems = [
+    ...filteredOptions.map(opt => ({ type: 'option' as const, ...opt })),
+    ...(canCreateCustom ? [{ type: 'create' as const, value: inputValue.trim(), label: `Create "${inputValue.trim()}"` }] : [])
+  ];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setInputValue('');
+        setFocusedIndex(-1);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  const handleSelectOption = (optionValue: string) => {
+    const newSelected = new Set(selectedValuesSet);
+    if (newSelected.has(optionValue)) {
+      newSelected.delete(optionValue);
+    } else {
+      newSelected.add(optionValue);
+    }
+    onChange({ ...safeValue, selected: Array.from(newSelected) });
   };
   
   const handleRemoveCustom = (customValue: string) => {
     onChange({ ...safeValue, custom: safeValue.custom.filter(v => v !== customValue) });
   };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && inputValue.trim()) {
-      e.preventDefault();
-      const newCustomValue = inputValue.trim();
-      if (!safeValue.custom.includes(newCustomValue) && !options.some(opt => opt.label.toLowerCase() === newCustomValue.toLowerCase())) {
-        onChange({ ...safeValue, custom: [...safeValue.custom, newCustomValue] });
-        setInputValue('');
-      }
-    } else if (e.key === 'Backspace' && !inputValue) {
-      if (safeValue.custom.length > 0) {
-        handleRemoveCustom(safeValue.custom[safeValue.custom.length - 1]);
-      } else if (safeValue.selected.length > 0) {
-        handleUnselect(safeValue.selected[safeValue.selected.length - 1]);
-      }
+  
+  const addCustomValue = (customValue: string) => {
+    if (customValue && !safeValue.custom.includes(customValue) && !options.some(opt => opt.label.toLowerCase() === customValue.toLowerCase())) {
+      onChange({ ...safeValue, custom: [...safeValue.custom, customValue] });
     }
   };
 
-  const selectedOptions = options.filter(opt => selectedValues.has(opt.value));
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen) {
+      if (e.key === 'Enter' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setIsOpen(true);
+        setFocusedIndex(0);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedIndex(prev => Math.min(prev + 1, allDropdownItems.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedIndex(prev => Math.max(prev - 1, 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < allDropdownItems.length) {
+          const item = allDropdownItems[focusedIndex];
+          if (item.type === 'option') {
+            handleSelectOption(item.value);
+          } else if (item.type === 'create') {
+            addCustomValue(inputValue.trim());
+          }
+          setInputValue('');
+          setFocusedIndex(-1);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setIsOpen(false);
+        setInputValue('');
+        setFocusedIndex(-1);
+        break;
+      case 'Backspace':
+        if (inputValue === '') {
+          e.preventDefault();
+          if (safeValue.custom.length > 0) {
+            handleRemoveCustom(safeValue.custom[safeValue.custom.length - 1]);
+          } else if (safeValue.selected.length > 0) {
+            const lastSelected = safeValue.selected[safeValue.selected.length - 1];
+            handleSelectOption(lastSelected);
+          }
+        }
+        break;
+    }
+  };
+
+  const selectedOptions = options.filter(opt => selectedValuesSet.has(opt.value));
   const displayedItems = [
     ...selectedOptions.map(opt => ({ type: 'selected' as const, ...opt })),
     ...safeValue.custom.map(val => ({ type: 'custom' as const, value: val, label: val }))
@@ -87,87 +149,116 @@ export const MultiAutocompleteInput: React.FC<MultiAutocompleteInputProps> = ({
 
   const getTagStyle = (itemType: 'selected' | 'custom'): React.CSSProperties => {
     if (color.startsWith('#') && itemType === 'selected') {
-      return { backgroundColor: `${color}33`, color: color };
+      return { backgroundColor: `${color}1a`, borderColor: color, color: color };
     }
     return {};
   }
   
   const getTagClassName = (itemType: 'selected' | 'custom'): string => {
-    if (itemType === 'custom') return 'bg-secondary text-secondary-foreground';
-    if (color.startsWith('#')) return 'border border-current';
-    return TAG_COLOR_MAP[color] || TAG_COLOR_MAP.primary;
+    if (itemType === 'custom') return 'bg-secondary text-secondary-foreground border-secondary';
+    // Base classes for tags
+    return 'border';
   }
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <div className="group w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-          <div className="flex flex-wrap gap-1.5 p-2 items-center">
-            {displayedItems.map((item) => (
-              <div
-                key={`${item.type}-${item.value}`}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                  getTagClassName(item.type)
-                )}
-                style={getTagStyle(item.type)}
+    <div className="relative w-full" ref={dropdownRef}>
+      <div
+        className="group w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 cursor-text"
+        onClick={() => {
+          setIsOpen(true);
+          inputRef.current?.focus();
+        }}
+      >
+        <div className="flex flex-wrap gap-1.5 p-2 min-h-[40px] items-center">
+          {displayedItems.map((item) => (
+            <div
+              key={`${item.type}-${item.value}`}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                getTagClassName(item.type)
+              )}
+              style={getTagStyle(item.type)}
+            >
+              {item.label}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (item.type === 'selected') {
+                    handleSelectOption(item.value);
+                  } else {
+                    handleRemoveCustom(item.value);
+                  }
+                }}
+                className="rounded-full hover:bg-black/10 p-0.5 focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                {item.label}
-                <button
-                  onClick={() => item.type === 'selected' ? handleUnselect(item.value) : handleRemoveCustom(item.value)}
-                  className="rounded-full hover:bg-black/10 p-0.5"
-                >
-                  <PiX className="h-3 w-3" aria-hidden="true" />
-                  <span className="sr-only">Remove {item.label}</span>
-                </button>
-              </div>
-            ))}
-            <Command>
-              <CommandInput
-                ref={inputRef}
-                value={inputValue}
-                onValueChange={setInputValue}
-                onKeyDown={handleKeyDown}
-                placeholder={displayedItems.length > 0 ? '' : placeholder}
-                className="flex-1 bg-transparent border-none shadow-none h-auto p-0 focus-visible:ring-0 min-w-[120px]"
-                onFocus={() => setIsOpen(true)}
-              />
-            </Command>
+                <PiX className="h-3 w-3" />
+                <span className="sr-only">Remove {item.label}</span>
+              </button>
+            </div>
+          ))}
+          <div className="flex-1 flex items-center min-w-[120px]">
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                if (!isOpen) setIsOpen(true);
+                setFocusedIndex(-1);
+              }}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setIsOpen(true)}
+              placeholder={displayedItems.length === 0 ? placeholder : ''}
+              className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+            />
+            <PiCaretDown className={cn("h-4 w-4 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
           </div>
         </div>
-      </PopoverTrigger>
+      </div>
 
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandList>
-            <CommandEmpty>
-                {inputValue.trim() ? `Press Enter to add "${inputValue.trim()}"` : 'No results found.'}
-            </CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => {
-                const isSelected = selectedValues.has(option.value);
-                return (
-                  <CommandItem
-                    key={option.value}
-                    onSelect={() => {
-                      if (isSelected) {
-                        handleUnselect(option.value);
-                      } else {
-                        onChange({ ...safeValue, selected: [...safeValue.selected, option.value] });
-                      }
-                      setInputValue('');
-                    }}
-                    className="cursor-pointer"
-                  >
-                     <PiCheck className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
-                    {option.label}
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-card/95 backdrop-blur-xl border rounded-md shadow-lg max-h-60 overflow-auto">
+          {allDropdownItems.length === 0 ? (
+            <div className="p-3 text-sm text-muted-foreground text-center">
+              {inputValue ? 'No options found' : 'Start typing to search...'}
+            </div>
+          ) : (
+            <div className="p-1">
+              {allDropdownItems.map((item, index) => (
+                <div
+                  key={`${item.type}-${item.value}`}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer transition-colors",
+                    index === focusedIndex ? "bg-accent" : "hover:bg-accent/50"
+                  )}
+                  onClick={() => {
+                    if (item.type === 'option') {
+                      handleSelectOption(item.value);
+                    } else if (item.type === 'create') {
+                      addCustomValue(inputValue.trim());
+                    }
+                    setInputValue('');
+                    setFocusedIndex(-1);
+                  }}
+                >
+                  {item.type === 'option' ? (
+                    <>
+                      <PiCheck className={cn("h-4 w-4", selectedValuesSet.has(item.value) ? "opacity-100" : "opacity-0")} />
+                      {item.label}
+                    </>
+                  ) : (
+                    <>
+                      <PiPlusCircleDuotone className="h-4 w-4" />
+                      {item.label}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }; 

@@ -24,21 +24,6 @@ interface CSSPropertiesWithVars extends React.CSSProperties {
   [key: `--${string}`]: string | number;
 }
 
-const BUTTON_COLOR_MAP: { [key: string]: { selected: string; unselected: string } } = {
-  primary: { selected: 'bg-primary text-primary-foreground hover:bg-primary/90', unselected: 'border-primary text-primary hover:bg-primary/10' },
-  secondary: { selected: 'bg-slate-500 text-white hover:bg-slate-600', unselected: 'border-slate-500 text-slate-600 hover:bg-slate-500/10' },
-  accent: { selected: 'bg-amber-500 text-white hover:bg-amber-600', unselected: 'border-amber-500 text-amber-600 hover:bg-amber-500/10' },
-  success: { selected: 'bg-emerald-500 text-white hover:bg-emerald-600', unselected: 'border-emerald-500 text-emerald-600 hover:bg-emerald-500/10' },
-  warning: { selected: 'bg-orange-500 text-white hover:bg-orange-600', unselected: 'border-orange-500 text-orange-600 hover:bg-orange-500/10' },
-  danger: { selected: 'bg-red-500 text-white hover:bg-red-600', unselected: 'border-red-500 text-red-600 hover:bg-red-500/10' },
-  blue: { selected: 'bg-blue-500 text-white hover:bg-blue-600', unselected: 'border-blue-500 text-blue-600 hover:bg-blue-500/10' },
-  indigo: { selected: 'bg-indigo-500 text-white hover:bg-indigo-600', unselected: 'border-indigo-500 text-indigo-600 hover:bg-indigo-500/10' },
-  purple: { selected: 'bg-purple-500 text-white hover:bg-purple-600', unselected: 'border-purple-500 text-purple-600 hover:bg-purple-500/10' },
-  pink: { selected: 'bg-pink-500 text-white hover:bg-pink-600', unselected: 'border-pink-500 text-pink-600 hover:bg-pink-500/10' },
-  teal: { selected: 'bg-teal-500 text-white hover:bg-teal-600', unselected: 'border-teal-500 text-teal-600 hover:bg-teal-500/10' },
-  cyan: { selected: 'bg-cyan-500 text-white hover:bg-cyan-600', unselected: 'border-cyan-500 text-cyan-600 hover:bg-cyan-500/10' },
-};
-
 type FontSize = 'sm' | 'base' | 'lg';
 
 // Field preview component that shows how the field will look
@@ -169,6 +154,10 @@ const FieldRenderer: React.FC<{
   onValueChange: (value: any) => void,
   showLabel: boolean
 }> = ({ field, fontSize, onValueChange: handleValueChange, showLabel }) => {
+    // FIX: Properly destructure complex defaultValues to avoid passing objects to input elements.
+    const isStructuredTogglable = field.defaultValue && typeof field.defaultValue === 'object' && 'toggled' in field.defaultValue && 'value' in field.defaultValue;
+    const rawValue = isStructuredTogglable ? field.defaultValue.value : field.defaultValue;
+
     const labelClasses = { sm: 'text-xs', base: 'text-sm', lg: 'text-base' }[fontSize];
     const descriptionClasses = { sm: 'text-[11px]', base: 'text-xs', lg: 'text-sm' }[fontSize];
     const RequiredBadge = () => field.required ? (
@@ -182,15 +171,12 @@ const FieldRenderer: React.FC<{
       return "flex flex-wrap gap-x-6 gap-y-2 pt-1";
     };
 
-    const getButtonColorClasses = (fieldColor: string, isSelected: boolean): string => {
-      const color = fieldColor || 'primary';
-      if (color.startsWith('#')) {
-        return isSelected
-          ? 'bg-[var(--field-color)] text-white hover:opacity-90 border-transparent'
-          : 'border-[var(--field-color)] text-[var(--field-color)] hover:bg-[var(--field-color-light)]';
-      }
-      const styles = BUTTON_COLOR_MAP[color] || BUTTON_COLOR_MAP.primary;
-      return isSelected ? styles.selected : styles.unselected;
+    const getButtonColorStyles = (baseColor: string, choiceColor?: string): CSSPropertiesWithVars => {
+      const color = choiceColor || baseColor || '#3b82f6';
+      return {
+        '--field-color': color,
+        '--field-color-light': `${color}1a`, // For background
+      };
     };
 
     const handleOtherInputChange = (otherValue: string) => {
@@ -265,7 +251,7 @@ const FieldRenderer: React.FC<{
           )}
           <Input 
             type="text" 
-            value={field.defaultValue || ''} 
+            value={rawValue || ''} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} 
             placeholder={field.options.placeholder || ''}
           />
@@ -283,12 +269,12 @@ const FieldRenderer: React.FC<{
               {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
             </>
           )}
-          <Input type="date" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />
+          <Input type="date" value={rawValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />
         </div>
       );
     case 'number':
       const enabledInputs = field.options.enabledInputs || ['input'];
-      const value = field.defaultValue || 0;
+      const value = rawValue || 0;
       const minRule = field.validation?.find(r => r.type === 'min');
       const maxRule = field.validation?.find(r => r.type === 'max');
       const min = minRule ? Number(minRule.value) : undefined;
@@ -352,7 +338,7 @@ const FieldRenderer: React.FC<{
           <div className="flex items-start space-x-3 p-2">
             <Switch
               id={`preview-${field.id}`}
-              checked={field.defaultValue || false}
+              checked={rawValue || false}
               onCheckedChange={(checked: boolean) => handleValueChange(checked)}
               className="mt-1"
             />
@@ -376,7 +362,7 @@ const FieldRenderer: React.FC<{
         <div className="flex items-start space-x-3 p-2">
           <Checkbox
             id={`preview-${field.id}`}
-            checked={field.defaultValue || false}
+            checked={rawValue || false}
             onChange={(e) => handleValueChange(e.target.checked)}
             className="mt-1"
           />
@@ -400,7 +386,7 @@ const FieldRenderer: React.FC<{
       const fallbackLabel = field.options.textFallbackLabel || 'Other';
 
       // This is a new, more complex value structure
-      const defaultValue = field.defaultValue || { selected: [], custom: [] };
+      const defaultValue = rawValue || { selected: [], custom: [] };
       
       const isPredefinedValue = typeof defaultValue === 'string' && singleChoices.some(c => c.value === defaultValue);
       
@@ -444,14 +430,20 @@ const FieldRenderer: React.FC<{
               </>
             )}
             <RadioGroup
-              value={isPredefinedValue ? field.defaultValue : ''}
+              value={isPredefinedValue ? defaultValue : ''}
               onValueChange={(value: string) => handleValueChange(value)}
               className={getChoiceGroupLayoutClasses()}
             >
               {singleChoices.map((choice) => (
                 <div key={choice.value} className="flex items-center space-x-2">
                   <RadioGroupItem value={choice.value} id={`${field.id}-${choice.value}`} />
-                  <label htmlFor={`${field.id}-${choice.value}`} className={cn("truncate", labelClasses)}>{choice.label}</label>
+                  <label 
+                    htmlFor={`${field.id}-${choice.value}`} 
+                    className={cn("truncate", labelClasses)}
+                    style={choice.color ? { color: choice.color } : {}}
+                  >
+                    {choice.label}
+                  </label>
                 </div>
               ))}
             </RadioGroup>
@@ -474,16 +466,28 @@ const FieldRenderer: React.FC<{
                 </>
               )}
               <div className={getChoiceGroupLayoutClasses()}>
-                {singleChoices.map(choice => (
-                  <Button
-                    key={choice.value}
-                    variant={choice.value === field.defaultValue ? 'default' : 'outline'}
-                    onClick={() => handleValueChange(choice.value)}
-                    className={getButtonColorClasses(field.styling.color, choice.value === field.defaultValue)}
-                  >
-                    {choice.label}
-                  </Button>
-                ))}
+                {singleChoices.map(choice => {
+                  const isSelected = choice.value === defaultValue;
+                  return (
+                    <Button
+                      key={choice.value}
+                      variant={isSelected ? 'default' : 'outline'}
+                      onClick={() => handleValueChange(choice.value)}
+                      style={getButtonColorStyles(field.styling.color, choice.color)}
+                      className={cn(
+                        'h-auto min-h-[40px] py-1 px-3', // Allow height to adjust
+                        isSelected
+                          ? 'bg-[var(--field-color)] text-white hover:opacity-90 border-transparent'
+                          : 'border-[var(--field-color)] text-[var(--field-color)] hover:bg-[var(--field-color-light)]',
+                        field.styling.textOverflow === 'wrap' 
+                          ? 'whitespace-normal' 
+                          : 'truncate'
+                      )}
+                    >
+                      {choice.label}
+                    </Button>
+                  )
+                })}
               </div>
               {renderFallbackInput()}
             </fieldset>
@@ -505,7 +509,7 @@ const FieldRenderer: React.FC<{
             )}
             <Select 
               onValueChange={handleValueChange} 
-              value={isPredefinedValue ? field.defaultValue : ''}
+              value={isPredefinedValue ? defaultValue : ''}
             >
                 <SelectTrigger id={`preview-${field.id}`}>
                     <SelectValue placeholder="Select an option..." />
@@ -526,7 +530,7 @@ const FieldRenderer: React.FC<{
     case 'multiple-choice': {
       const multiChoices = field.options.choices || [];
       
-      const defaultValue = (field.defaultValue || {}) as { selected?: string[], custom?: string[] };
+      const defaultValue = (rawValue || {}) as { selected?: string[], custom?: string[] };
       const selectedValues = new Set(defaultValue.selected || []);
       const customValues = defaultValue.custom || [];
       const fallbackLabelMulti = field.options.textFallbackLabel || 'Other';
@@ -575,6 +579,7 @@ const FieldRenderer: React.FC<{
                   <Button
                     key={choice.value}
                     variant={isSelected ? 'default' : 'outline'}
+                    style={getButtonColorStyles(field.styling.color, choice.color)}
                     onClick={() => {
                       const newSelected = new Set(selectedValues);
                       if (isSelected) {
@@ -584,7 +589,15 @@ const FieldRenderer: React.FC<{
                       }
                       handleMultiChange(newSelected);
                     }}
-                    className={getButtonColorClasses(field.styling.color, isSelected)}
+                    className={cn(
+                      'h-auto min-h-[40px] py-1 px-3', // Allow height to adjust
+                      isSelected
+                        ? 'bg-[var(--field-color)] text-white hover:opacity-90 border-transparent'
+                        : 'border-[var(--field-color)] text-[var(--field-color)] hover:bg-[var(--field-color-light)]',
+                      field.styling.textOverflow === 'wrap' 
+                        ? 'whitespace-normal' 
+                        : 'truncate'
+                    )}
                   >
                     {choice.label}
                   </Button>
@@ -610,7 +623,13 @@ const FieldRenderer: React.FC<{
                       handleMultiChange(newSelected);
                     }}
                   />
-                  <label htmlFor={`${field.id}-${choice.value}`} className={cn("truncate", labelClasses)}>{choice.label}</label>
+                  <label 
+                    htmlFor={`${field.id}-${choice.value}`} 
+                    className={cn("truncate", labelClasses)}
+                    style={choice.color ? { color: choice.color } : {}}
+                  >
+                    {choice.label}
+                  </label>
                 </div>
               ))}
             </div>
@@ -691,14 +710,7 @@ const FieldComponent: React.FC<{ fieldId: string; sectionId: string; fontSize?: 
         isSelected ? 'border-primary shadow-lg' : 'border-transparent hover:border-slate-400 dark:hover:border-slate-600',
         customColor 
           ? 'border-[var(--field-color)] bg-[var(--field-color-light)]'
-          : {
-            'border-primary/50 bg-primary/5': field.styling.color === 'primary',
-            'border-slate-500/50 bg-slate-500/5': field.styling.color === 'secondary',
-            'border-amber-500/50 bg-amber-500/5': field.styling.color === 'accent',
-            'border-emerald-500/50 bg-emerald-500/5': field.styling.color === 'success',
-            'border-orange-500/50 bg-orange-500/5': field.styling.color === 'warning',
-            'border-red-500/50 bg-red-500/5': field.styling.color === 'danger'
-          },
+          : 'border-slate-500/50 bg-slate-500/5',
         isDragging && 'shadow-2xl scale-105'
       )}
     >
@@ -805,25 +817,11 @@ const SectionComponent: React.FC<{ sectionId: string }> = ({ sectionId }) => {
 
   // Apply section colors properly
   const getSectionColorClasses = (color: string) => {
-    if (color.startsWith('#')) {
+    if (color?.startsWith('#')) {
       return 'border-[var(--section-color)] bg-[var(--section-color-light)]';
     }
-    switch (color) {
-      case 'primary':
-        return 'border-primary/50 bg-primary/5';
-      case 'secondary':
-        return 'border-slate-500/50 bg-slate-500/5';
-      case 'accent':
-        return 'border-amber-500/50 bg-amber-500/5';
-      case 'success':
-        return 'border-emerald-500/50 bg-emerald-500/5';
-      case 'warning':
-        return 'border-orange-500/50 bg-orange-500/5';
-      case 'danger':
-        return 'border-red-500/50 bg-red-500/5';
-      default:
-        return 'border-slate-500/50 bg-slate-500/5';
-    }
+    // Default fallback
+    return 'border-slate-500/50 bg-slate-500/5';
   };
 
   const setCombinedRef = (node: HTMLElement | null) => {
@@ -1040,10 +1038,6 @@ const CanvasV2: React.FC = () => {
               <CardTitle className="text-lg sm:text-xl truncate">{currentForm.name}</CardTitle>
               <CardDescription className="hidden sm:block truncate">{currentForm.description}</CardDescription>
             </div>
-            <Button onClick={addSection} variant="outline" size="sm" className="flex-shrink-0">
-              <PiPlus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Add Section</span>
-            </Button>
           </div>
         </CardHeader>
         
