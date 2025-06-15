@@ -21,11 +21,10 @@ const Stepper: React.FC<StepperProps> = ({ value, onValueChange, min = 0, max = 
 
   return (
     <div className="flex items-center">
-      <Button variant="outline" size="icon" className="h-9 w-9 rounded-r-none" onClick={handleDecrement} disabled={value <= min}>
+      <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleDecrement} disabled={value <= min}>
         <PiMinus />
       </Button>
-      <span className="w-12 border-y text-center text-md font-semibold flex items-center justify-center h-9">{value}</span>
-      <Button variant="outline" size="icon" className="h-9 w-9 rounded-l-none" onClick={handleIncrement} disabled={value >= max}>
+      <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleIncrement} disabled={value >= max}>
         <PiPlus />
       </Button>
     </div>

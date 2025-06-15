@@ -261,6 +261,19 @@ const InspectorV2: React.FC = () => {
   // Field inspector
   if (!localField) return null;
 
+  const updateValidationRule = (ruleType: 'min' | 'max', value: number | undefined) => {
+    if (!localField) return;
+    const otherRules = localField.validation?.filter(r => r.type !== ruleType) || [];
+    let newRules = [...otherRules];
+    if (value !== undefined && !isNaN(value)) {
+      const message = ruleType === 'min' 
+        ? `Value must be at least ${value}` 
+        : `Value must be no more than ${value}`;
+      newRules.push({ type: ruleType, value, message });
+    }
+    updateLocalField({ validation: newRules });
+  };
+  
   const handleLayoutChange = (style: 'auto' | 'columns', columns?: number) => {
     updateLocalOptions({ layout: { style, columns } });
   };
@@ -333,6 +346,24 @@ const InspectorV2: React.FC = () => {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateLocalOptions({ unit: e.target.value })}
                 placeholder="e.g., kg, mmHg, %"
               />
+              <div className="grid grid-cols-2 gap-2">
+                 <InputField
+                    id="number-min"
+                    label="Min Value"
+                    type="number"
+                    placeholder="None"
+                    value={localField.validation?.find(r => r.type === 'min')?.value ?? ''}
+                    onChange={(e) => updateValidationRule('min', e.target.valueAsNumber)}
+                  />
+                  <InputField
+                    id="number-max"
+                    label="Max Value"
+                    type="number"
+                    placeholder="None"
+                    value={localField.validation?.find(r => r.type === 'max')?.value ?? ''}
+                    onChange={(e) => updateValidationRule('max', e.target.valueAsNumber)}
+                  />
+              </div>
               
               <div>
                 <label className="text-sm font-medium">

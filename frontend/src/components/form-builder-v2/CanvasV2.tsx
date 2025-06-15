@@ -189,14 +189,18 @@ const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
                 <RequiredBadge />
               </div>
               {field.description && <p className="text-xs text-muted-foreground -mt-1">{field.description}</p>}
-              <Combobox
-                options={singleChoices}
-                value={field.defaultValue}
-                onChange={handleValueChange}
-                placeholder="Select an option..."
-                searchPlaceholder="Search options..."
-                notFoundText="No matching options."
-              />
+              <Select onValueChange={handleValueChange} value={field.defaultValue}>
+                  <SelectTrigger id={`preview-${field.id}`}>
+                      <SelectValue placeholder="Select an option..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {singleChoices.map(choice => (
+                          <SelectItem key={choice.value} value={choice.value}>
+                              {choice.label}
+                          </SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
             </div>
           )
         }
