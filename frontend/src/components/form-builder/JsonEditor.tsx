@@ -1,33 +1,29 @@
 // src/components/form-builder/JsonEditor.tsx
 import React, { useState, useEffect } from 'react';
 import Editor from 'react-simple-code-editor';
-// @ts-ignore - prism-core has no type definitions, this is safe to ignore
+// @ts-ignore
 import { highlight, languages } from 'prismjs/components/prism-core';
-import 'prismjs/components/prism-json'; // This MUST be imported to register the 'json' language
-import 'prismjs/themes/prism-tomorrow.css'; 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { cn } from '@/lib/utils'; // Import cn for conditional classes
+import 'prismjs/components/prism-json';
+import 'prismjs/themes/prism-tomorrow.css';
+import { cn } from '@/lib/utils';
 import { Button } from '../ui/Button';
 import { PiCheck, PiCopy } from 'react-icons/pi';
 
 interface JsonEditorProps {
-  title: string;
   jsonString: string;
   onJsonChange: (value: string) => void;
   readOnly?: boolean;
+  showError?: boolean;
 }
 
-const JsonEditor: React.FC<JsonEditorProps> = ({ title, jsonString, onJsonChange, readOnly = false }) => {
+const JsonEditor: React.FC<JsonEditorProps> = ({ 
+  jsonString, 
+  onJsonChange, 
+  readOnly = false,
+  showError = true 
+}) => {
   const [error, setError] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
-    checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
-    return () => window.removeEventListener('resize', checkIsMobile);
-  }, []);
 
   const handleChange = (value: string) => {
     onJsonChange(value);
@@ -40,49 +36,41 @@ const JsonEditor: React.FC<JsonEditorProps> = ({ title, jsonString, onJsonChange
   };
 
   const handleCopy = () => {
-    // Implement copy functionality
+    navigator.clipboard.writeText(jsonString);
     setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <Card className="h-full flex flex-col min-h-[300px] lg:min-h-[400px]">
-      <CardHeader className="flex-shrink-0">
-        <CardTitle className="text-lg lg:text-xl">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-grow relative p-3 lg:p-6">
-        <div className="flex justify-between items-center mb-2 flex-shrink-0">
-          <h3 className="text-sm font-semibold">{title}</h3>
-          <Button variant="ghost" size="sm" onClick={handleCopy}>
-            {copied ? <PiCheck className="text-emerald-500"/> : <PiCopy/>}
-          </Button>
-        </div>
-        <div className="absolute inset-3 lg:inset-6">
-          <Editor
-            value={jsonString}
-            onValueChange={handleChange}
-            // FIX: Pass the loaded language object (languages.json), not the string 'json'
-            highlight={(code) => highlight(code, languages.json, 'json')}
-            padding={8}
-            className={cn(
-                "font-mono bg-[#2d2d2d] text-white rounded-md h-full w-full overflow-auto border",
-                "text-xs lg:text-sm", // Mobile-responsive text size
-                error ? 'border-destructive' : 'border-border'
-            )}
-            style={{
-              fontFamily: '"Fira code", "Fira Mono", monospace',
-              fontSize: isMobile ? 11 : 12,
-              lineHeight: isMobile ? 1.3 : 1.4,
-            }}
-            readOnly={readOnly}
-          />
-        </div>
-      </CardContent>
-      {error && (
-        <div className="flex-shrink-0 p-2 lg:p-3 text-xs text-destructive bg-destructive/10 border-t border-destructive/50">
+    <div className="relative h-full w-full bg-gray-900 rounded-md border border-border">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleCopy}
+        className="absolute top-2 right-2 z-10 h-7 w-7 text-gray-400 hover:text-white hover:bg-white/10"
+      >
+        {copied ? <PiCheck className="text-emerald-400" /> : <PiCopy className="w-4 h-4" />}
+      </Button>
+      <div className="h-full w-full overflow-auto">
+        <Editor
+          value={jsonString}
+          onValueChange={readOnly ? () => {} : handleChange}
+          highlight={(code) => highlight(code, languages.json, 'json')}
+          padding={10}
+          className="font-mono text-xs text-white min-h-full"
+          style={{
+            fontFamily: '"Fira Code", "Fira Mono", monospace',
+            fontSize: 12,
+          }}
+          readOnly={readOnly}
+        />
+      </div>
+      {showError && error && (
+        <div className="absolute bottom-0 left-0 right-0 p-2 text-xs text-destructive bg-destructive/20 border-t border-destructive/30">
           <strong>JSON Error:</strong> {error}
         </div>
       )}
-    </Card>
+    </div>
   );
 };
 

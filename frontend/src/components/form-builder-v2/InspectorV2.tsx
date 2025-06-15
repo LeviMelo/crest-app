@@ -545,6 +545,29 @@ const InspectorV2: React.FC = () => {
                 </Select>
               </div>
 
+              <div className="pt-4 border-t space-y-3">
+                <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <label htmlFor="text-fallback" className="text-sm font-medium">Text Fallback</label>
+                    <p className="text-xs text-muted-foreground">Allow a free-text "Other" option.</p>
+                  </div>
+                  <Switch
+                    id="text-fallback"
+                    checked={localField.options.textFallback}
+                    onCheckedChange={(checked) => updateLocalOptions({ textFallback: checked })}
+                  />
+                </div>
+                {localField.options.textFallback && (
+                  <InputField
+                    id="text-fallback-label"
+                    label="Fallback Label"
+                    placeholder="e.g., Other, Specify"
+                    value={localField.options.textFallbackLabel || ''}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateLocalOptions({ textFallbackLabel: e.target.value })}
+                  />
+                )}
+              </div>
+
               {showChoiceLayout && (
                 <div className="pt-2 border-t">
                   <label className="text-sm font-medium">Choice Layout</label>
@@ -587,6 +610,21 @@ const InspectorV2: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {localField.type === 'autocomplete-multiple' && (
+            <div className="space-y-4">
+              <ChoiceEditor
+                choices={localField.options.choices || []}
+                onChange={handleChoicesChange}
+              />
+              <InputField
+                id="ac-placeholder"
+                label="Placeholder Text"
+                value={localField.options.placeholder || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateLocalOptions({ placeholder: e.target.value })}
+              />
             </div>
           )}
         </div>

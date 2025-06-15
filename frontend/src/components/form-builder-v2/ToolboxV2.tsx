@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useFormBuilderStoreV2, FieldType } from '@/stores/formBuilderStore.v2';
 import { 
@@ -62,6 +61,13 @@ const fieldTypes: FieldTypeButton[] = [
     shortLabel: 'Date',
     icon: PiCalendarDuotone,
     description: 'Date picker input'
+  },
+  {
+    type: 'autocomplete-multiple',
+    label: 'Autocomplete (Multi)',
+    shortLabel: 'Auto (M)',
+    icon: PiSparkleDuotone,
+    description: 'Select from a list or add custom tags'
   }
 ];
 
@@ -75,52 +81,24 @@ const ToolboxV2: React.FC = () => {
   };
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="flex-shrink-0 p-4 sm:p-6">
-        <CardTitle className="text-lg sm:text-xl">
-          <span className="hidden sm:inline">Field Types</span>
-          <span className="sm:hidden">Fields</span>
-        </CardTitle>
-        <p className="text-sm text-muted-foreground hidden sm:block">
-          Click to add fields to your form
-        </p>
-      </CardHeader>
-      <CardContent className="flex-grow overflow-auto p-4 sm:p-6">
-        <div className="grid grid-cols-2 sm:grid-cols-1 gap-2 sm:gap-3">
+    <div className="p-3 bg-card/60 backdrop-blur-xl border-b rounded-b-lg shadow-md">
+        <div className="flex items-center justify-center gap-2">
           {fieldTypes.map((fieldType) => (
             <Button
               key={fieldType.type}
-              variant="outline"
+              variant="ghost"
               onClick={() => handleAddField(fieldType.type)}
               disabled={!currentForm}
-              className="h-auto p-3 sm:p-4 flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left hover:bg-accent hover:border-primary transition-all"
+              className="h-auto p-3 flex flex-col items-center justify-center text-center hover:bg-primary/10 transition-all active:scale-95 aspect-square w-20"
             >
-              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full">
-                <fieldType.icon className="w-5 h-5 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
-                <div className="flex-grow min-w-0">
-                  <div className="font-medium text-xs sm:text-sm">
-                    <span className="hidden sm:inline">{fieldType.label}</span>
-                    <span className="sm:hidden">{fieldType.shortLabel || fieldType.label}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1 hidden sm:block">
-                    {fieldType.description}
-                  </div>
-                </div>
+              <fieldType.icon className="w-6 h-6 mb-1 text-primary" />
+              <div className="font-medium text-[11px] leading-tight">
+                {fieldType.label}
               </div>
             </Button>
           ))}
         </div>
-        
-        {!currentForm && (
-          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-muted/50 rounded-lg text-center">
-            <p className="text-sm text-muted-foreground">
-              <span className="hidden sm:inline">Create or load a form to start adding fields</span>
-              <span className="sm:hidden">Create form first</span>
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    </div>
   );
 };
 

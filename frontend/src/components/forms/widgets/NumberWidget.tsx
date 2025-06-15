@@ -39,25 +39,25 @@ const NumberWidget: React.FC<NumberWidgetProps> = ({ label, value, onChange, opt
     <div className="space-y-4">
       <label className="text-sm font-medium">{label}</label>
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        {enabledInputs.includes('inputBox') && (
-            <InputField
-              id={`input-${label}`}
-              type="number"
-              label=""
+      {enabledInputs.includes('inputBox') && (
+          <InputField
+            id={`input-${label}`}
+            type="number"
+            label=""
               containerClassName='w-full sm:w-40'
-              value={value || ''}
-              onChange={handleInputChange}
-              min={minimum}
-              max={maximum}
-              addon={unit}
-            />
-        )}
-        {enabledInputs.includes('stepper') && (
-          <Stepper
-            value={value || 0}
-            onValueChange={onChange}
+            value={value || ''}
+            onChange={handleInputChange}
             min={minimum}
             max={maximum}
+              addon={unit}
+        />
+      )}
+      {enabledInputs.includes('stepper') && (
+        <Stepper
+          value={value || 0}
+          onValueChange={onChange}
+          min={minimum}
+          max={maximum}
           />
         )}
       </div>

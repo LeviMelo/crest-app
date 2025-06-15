@@ -65,7 +65,7 @@ const Inspector: React.FC = () => {
 
     const isUpdatingFromStore = useRef(false);
 
-    useEffect(() => {
+  useEffect(() => {
         if (selectedFieldId) {
             isUpdatingFromStore.current = true;
             
@@ -91,7 +91,7 @@ const Inspector: React.FC = () => {
                     }));
                 }
                 
-                reset({
+      reset({
                     title: fieldSchema.title || '',
                     description: fieldSchema.description || '',
                     columns: fieldUiOptions.columns || 1,
@@ -152,21 +152,21 @@ const Inspector: React.FC = () => {
         }
 
     }, [selectedFieldId, updateFieldSchema, updateFieldUiOptions, findFieldParent]);
-
-    useEffect(() => {
+  
+  useEffect(() => {
         const subscription = watch(updateStore as (value: unknown) => void);
-        return () => subscription.unsubscribe();
+    return () => subscription.unsubscribe();
     }, [watch, updateStore]);
 
-    if (!selectedFieldId) {
-        return (
+  if (!selectedFieldId) {
+    return (
             <Card className="h-full flex flex-col">
                 <CardHeader className="flex-shrink-0"><CardTitle className="text-lg lg:text-xl">Inspector</CardTitle></CardHeader>
                 <CardContent className="flex-grow flex items-center justify-center"><div className="text-center"><p className="text-sm lg:text-base text-muted-foreground">Select a field on the canvas to see its properties.</p><p className="text-xs lg:text-sm text-muted-foreground mt-2">On mobile, tap a field in the Canvas tab first.</p></div></CardContent>
-            </Card>
-        );
-    }
-    
+      </Card>
+    );
+  }
+  
     const { parentSchema: currentParentSchema } = findFieldParent(useFormBuilderStore.getState(), selectedFieldId);
     const selectedFieldSchema = currentParentSchema?.properties?.[selectedFieldId];
     const selectedType = selectedFieldSchema?.type === 'array' ? 'multipleChoice' : selectedFieldSchema?.type;
@@ -202,8 +202,8 @@ const Inspector: React.FC = () => {
             </div>
         </div>
     );
-    
-    return (
+
+  return (
         <Card className="h-full flex flex-col">
             <CardHeader className="flex-shrink-0"><CardTitle className="text-lg lg:text-xl">Inspector</CardTitle></CardHeader>
             <CardContent className="flex-grow overflow-auto p-4"><form className="space-y-4">
@@ -265,14 +265,14 @@ const Inspector: React.FC = () => {
                                 <label className="flex items-center gap-2 text-sm lg:text-base"><UiCheckbox {...register('enabledInputs')} value="slider" /> Slider</label>
                                 <label className="flex items-center gap-2 text-sm lg:text-base"><UiCheckbox {...register('enabledInputs')} value="stepper" /> Stepper Buttons</label>
                             </div>
-                        </div>
                     </div>
-                )}
+                </div>
+            )}
 
                 {isChoice && renderChoiceEditor()}
             </form></CardContent>
-        </Card>
-    );
+    </Card>
+  );
 };
 
 export default Inspector;

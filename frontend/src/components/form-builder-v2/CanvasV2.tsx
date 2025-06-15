@@ -17,6 +17,7 @@ import { Switch } from '@/components/ui/Switch';
 import { Combobox } from '@/components/ui/Combobox';
 import { Input } from '@/components/ui/Input';
 import { AnimatePresence, motion } from 'framer-motion';
+import { MultiAutocompleteInput } from '../ui/MultiAutocompleteInput';
 
 // Allow custom CSS properties
 interface CSSPropertiesWithVars extends React.CSSProperties {
@@ -193,6 +194,38 @@ const FieldRenderer: React.FC<{
       return isSelected ? styles.selected : styles.unselected;
     };
 
+    const handleOtherInputChange = (otherValue: string) => {
+        if (field.type === 'single-choice') {
+            handleValueChange(otherValue);
+        } else if (field.type === 'multiple-choice') {
+            const currentSelected = new Set(Array.isArray(field.defaultValue) ? field.defaultValue : []);
+            handleValueChange({
+                selected: Array.from(currentSelected),
+                otherValue: otherValue,
+            });
+        }
+    };
+    
+    const handleOtherSelection = (isSelected: boolean) => {
+        if (field.type === 'single-choice') {
+            if (isSelected) {
+                // Special value to indicate "Other" is selected, but text is empty
+                handleValueChange('__OTHER_EMPTY__'); 
+            }
+        } else if (field.type === 'multiple-choice') {
+            const currentSelected = new Set(Array.isArray(field.defaultValue?.selected) ? field.defaultValue.selected : []);
+            if (isSelected) {
+                currentSelected.add('__OTHER__');
+            } else {
+                currentSelected.delete('__OTHER__');
+            }
+            handleValueChange({
+                selected: Array.from(currentSelected),
+                otherValue: field.defaultValue?.otherValue || '',
+            });
+        }
+    }
+
   switch (field.type) {
     case 'text':
     case 'date':
@@ -321,8 +354,28 @@ const FieldRenderer: React.FC<{
           </div>
         </div>
       );
-    case 'single-choice':
+    case 'single-choice': {
       const singleChoices = field.options.choices || [];
+      const fallbackLabel = field.options.textFallbackLabel || 'Other';
+      const isOtherValue = field.defaultValue && !singleChoices.some(c => c.value === field.defaultValue);
+      const otherValue = isOtherValue ? field.defaultValue : '';
+
+      const renderFallbackInput = () => (
+        field.options.textFallback && (
+          <div className="mt-2">
+            <InputField
+              id={`${field.id}-fallback`}
+              label={fallbackLabel}
+              placeholder="Please specify..."
+              value={otherValue}
+              onChange={(e) => handleValueChange(e.target.value)}
+              containerClassName="gap-1"
+              className="h-9"
+            />
+          </div>
+        )
+      );
+
       if (field.options.displayAs === 'radio') {
         return (
           <fieldset>
@@ -338,8 +391,8 @@ const FieldRenderer: React.FC<{
               </>
             )}
             <RadioGroup
-              value={field.defaultValue}
-              onValueChange={handleValueChange}
+              value={isOtherValue ? '' : field.defaultValue}
+              onValueChange={(value: string) => handleValueChange(value)}
               className={getChoiceGroupLayoutClasses()}
             >
               {singleChoices.map((choice) => (
@@ -349,6 +402,7 @@ const FieldRenderer: React.FC<{
                 </div>
               ))}
             </RadioGroup>
+            {renderFallbackInput()}
           </fieldset>
         );
       } else { // Dropdown or Button Group
@@ -378,6 +432,7 @@ const FieldRenderer: React.FC<{
                   </Button>
                 ))}
               </div>
+              {renderFallbackInput()}
             </fieldset>
           )
         }
@@ -395,7 +450,7 @@ const FieldRenderer: React.FC<{
                 {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
               </>
             )}
-            <Select onValueChange={handleValueChange} value={field.defaultValue}>
+            <Select onValueChange={handleValueChange} value={isOtherValue ? '' : field.defaultValue}>
                 <SelectTrigger id={`preview-${field.id}`}>
                     <SelectValue placeholder="Select an option..." />
                 </SelectTrigger>
@@ -407,12 +462,41 @@ const FieldRenderer: React.FC<{
                     ))}
                 </SelectContent>
             </Select>
+            {renderFallbackInput()}
           </div>
         )
       }
-    case 'multiple-choice':
+    }
+    case 'multiple-choice': {
       const multiChoices = field.options.choices || [];
-      const selectedValues = new Set(Array.isArray(field.defaultValue) ? field.defaultValue : []);
+      
+      const defaultValue = (field.defaultValue || {}) as { selected?: string[], otherValue?: string };
+      const selectedValues = new Set(defaultValue.selected || []);
+      const otherValue = defaultValue.otherValue || '';
+      const fallbackLabelMulti = field.options.textFallbackLabel || 'Other';
+
+      const handleMultiChange = (newSelected: Set<string>, newOtherValue?: string) => {
+        handleValueChange({
+            selected: Array.from(newSelected),
+            otherValue: newOtherValue !== undefined ? newOtherValue : otherValue,
+        });
+      };
+      
+      const renderFallbackInput = () => (
+        field.options.textFallback && (
+          <div className="mt-2">
+            <InputField
+              id={`${field.id}-fallback`}
+              label={fallbackLabelMulti}
+              placeholder="Please specify..."
+              value={otherValue}
+              onChange={(e) => handleMultiChange(selectedValues, e.target.value)}
+              containerClassName="gap-1"
+              className="h-9"
+            />
+          </div>
+        )
+      );
 
       return (
         <fieldset>
@@ -443,7 +527,7 @@ const FieldRenderer: React.FC<{
                       } else {
                         newSelected.add(choice.value);
                       }
-                      handleValueChange(Array.from(newSelected));
+                      handleMultiChange(newSelected);
                     }}
                     className={getButtonColorClasses(field.styling.color, isSelected)}
                   >
@@ -468,7 +552,7 @@ const FieldRenderer: React.FC<{
                       } else {
                         newSelected.delete(choice.value);
                       }
-                      handleValueChange(Array.from(newSelected));
+                      handleMultiChange(newSelected);
                     }}
                   />
                   <label htmlFor={`${field.id}-${choice.value}`} className={cn("truncate", labelClasses)}>{choice.label}</label>
@@ -476,6 +560,31 @@ const FieldRenderer: React.FC<{
               ))}
             </div>
           )}
+          {renderFallbackInput()}
+        </fieldset>
+      );
+    }
+    case 'autocomplete-multiple':
+      return (
+        <fieldset>
+          {showLabel && (
+            <>
+              <div className="flex items-center justify-between mb-1">
+                <legend className={cn("font-medium truncate", labelClasses)}>
+                  {field.label}
+                </legend>
+                <RequiredBadge />
+              </div>
+              {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+            </>
+          )}
+          <MultiAutocompleteInput
+            options={field.options.choices || []}
+            value={field.defaultValue || { selected: [], custom: [] }}
+            onChange={handleValueChange}
+            placeholder={field.options.placeholder}
+            color={field.styling.color}
+          />
         </fieldset>
       );
     default:

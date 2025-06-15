@@ -10,7 +10,8 @@ export type FieldType =
   | 'boolean'
   | 'single-choice'
   | 'multiple-choice'
-  | 'date';
+  | 'date'
+  | 'autocomplete-multiple';
 
 export interface ValidationRule {
   type: 'required' | 'min' | 'max' | 'pattern';
@@ -28,6 +29,8 @@ export interface FieldOptions {
     columns?: number;
   };
   togglable?: boolean;
+  textFallback?: boolean;
+  textFallbackLabel?: string;
   [key: string]: any;
 }
 
@@ -142,6 +145,7 @@ export interface FormBuilderActions {
   addError: (error: Omit<FormBuilderError, 'id'>) => void;
   removeError: (errorId: string) => void;
   clearErrors: () => void;
+  setRawForm: (jsonString: string) => boolean;
   
   // Utility functions
   getField: (fieldId: string) => Field | null;
@@ -157,17 +161,20 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
     description: '',
     required: false,
     validation: [],
-    options: {},
+    options: {
+      togglable: false,
+      textFallback: false,
+    },
     styling: { color: 'primary', width: 'normal' as const }
   };
 
   switch (type) {
     case 'text':
-      return { ...base, options: { togglable: false }, defaultValue: '' };
+      return { ...base, defaultValue: '' };
     case 'number':
-      return { ...base, options: { unit: '', enabledInputs: ['input'], togglable: false }, defaultValue: { toggled: false, value: 0 } };
+      return { ...base, options: { ...base.options, unit: '', enabledInputs: ['input'] }, defaultValue: { toggled: false, value: 0 } };
     case 'boolean':
-      return { ...base, options: { displayAs: 'checkbox' }, defaultValue: false };
+      return { ...base, options: { ...base.options, displayAs: 'checkbox' }, defaultValue: false };
     case 'single-choice':
       return {
         ...base,
@@ -178,7 +185,8 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
           ],
           displayAs: 'radio',
           layout: { style: 'auto' },
-          togglable: false
+          togglable: false,
+          textFallback: false
         },
         defaultValue: { toggled: false, value: 'option_1' }
       };
@@ -192,14 +200,27 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
           ],
           displayAs: 'checkboxGroup',
           layout: { style: 'auto' },
-          togglable: false
+          togglable: false,
+          textFallback: false
         },
         defaultValue: { toggled: false, value: ['option_1'] }
       };
+    case 'autocomplete-multiple':
+      return {
+        ...base,
+        options: { 
+          choices: [
+            { value: 'icd_g40', label: 'G40 - Epilepsy' },
+            { value: 'icd_j45', label: 'J45 - Asthma' }
+          ],
+          placeholder: 'Type or select...'
+        },
+        defaultValue: { selected: [], custom: [] }
+      };
     case 'date':
-      return { ...base, options: { togglable: false }, defaultValue: '' };
+      return { ...base, defaultValue: '' };
     default:
-      return { ...base, options: { togglable: false }, defaultValue: null };
+      return { ...base, defaultValue: null };
   }
 };
 
@@ -589,6 +610,21 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
     set(produce((state: FormBuilderState) => {
       state.previewMode = !state.previewMode;
     }));
+  },
+
+  setRawForm: (jsonString: string): boolean => {
+    try {
+      const form = JSON.parse(jsonString) as Form;
+      // Basic validation
+      if (form && form.id && form.name && Array.isArray(form.fields) && form.layout?.sections) {
+        set({ currentForm: form, selectedFieldId: null, errors: [] });
+        return true;
+      }
+      throw new Error("Invalid form structure.");
+    } catch(e: any) {
+      get().addError({ type: 'load', message: `Invalid JSON: ${e.message}` });
+      return false;
+    }
   },
 
   setDraggedField: (fieldId: string | null) => {

@@ -4,21 +4,21 @@ import { cn } from "@/lib/utils"
 import { Input, InputProps } from "@/components/ui/Input"
 
 export interface InputFieldProps extends InputProps {
-  label: string;
-  id: string;
+    label: string;
+    id: string;
   subtitle?: string;
-  containerClassName?: string;
+    containerClassName?: string;
   addon?: React.ReactNode;
 }
 
 const InputField = React.forwardRef<HTMLInputElement, InputFieldProps>(
   ({ label, id, subtitle, containerClassName, addon, ...props }, ref) => {
-    return (
-      <div className={cn("grid w-full items-center gap-1.5", containerClassName)}>
+        return (
+            <div className={cn("grid w-full items-center gap-1.5", containerClassName)}>
         <div className="flex items-center justify-between">
-          <label htmlFor={id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-            {label}
-          </label>
+                <label htmlFor={id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    {label}
+                </label>
           {props.required && (
             <div className="text-xs font-semibold uppercase bg-destructive/10 text-destructive rounded-full px-2 py-0.5">
               Required
@@ -36,9 +36,9 @@ const InputField = React.forwardRef<HTMLInputElement, InputFieldProps>(
             </div>
           )}
         </div>
-      </div>
-    )
-  }
+            </div>
+        )
+    }
 )
 InputField.displayName = "InputField"
 

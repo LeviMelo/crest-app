@@ -156,8 +156,14 @@ const ProjectFormBuilderPage: React.FC = () => {
                 isCodeDrawerOpen ? "max-h-[1000px] opacity-100 py-4" : "max-h-0 opacity-0"
              )}>
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <JsonEditor title="Data Schema (schema.json)" jsonString={schemaString} onJsonChange={setRawSchema} />
-                    <JsonEditor title="UI Schema (uiSchema.json)" jsonString={uiSchemaString} onJsonChange={setRawUiSchema} />
+                    <Card className="min-h-[400px]">
+                        <CardHeader><CardTitle>Data Schema (schema.json)</CardTitle></CardHeader>
+                        <CardContent><JsonEditor jsonString={schemaString} onJsonChange={setRawSchema} /></CardContent>
+                    </Card>
+                    <Card className="min-h-[400px]">
+                        <CardHeader><CardTitle>UI Schema (uiSchema.json)</CardTitle></CardHeader>
+                        <CardContent><JsonEditor jsonString={uiSchemaString} onJsonChange={setRawUiSchema} /></CardContent>
+                    </Card>
                 </div>
             </div>
         </div>
