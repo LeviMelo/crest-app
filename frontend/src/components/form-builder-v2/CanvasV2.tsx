@@ -16,17 +16,35 @@ import { CSS } from '@dnd-kit/utilities';
 import { Switch } from '@/components/ui/Switch';
 import { Combobox } from '@/components/ui/Combobox';
 import { Input } from '@/components/ui/Input';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Autocomplete } from "../ui/Autocomplete";
+
+type FontSize = 'sm' | 'base' | 'lg';
 
 // Field preview component that shows how the field will look
-const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
+const FieldPreview: React.FC<{ field: Field; fontSize?: FontSize }> = ({ field, fontSize = 'base' }) => {
   const { updateFieldDefaultValue } = useFormBuilderStoreV2();
 
   const handleValueChange = (value: any) => {
     updateFieldDefaultValue(field.id, value);
   };
 
+  const labelClasses = {
+    sm: 'text-xs',
+    base: 'text-sm',
+    lg: 'text-base'
+  }[fontSize];
+
+  const descriptionClasses = {
+    sm: 'text-[11px]',
+    base: 'text-xs',
+    lg: 'text-sm'
+  }[fontSize];
+
   const RequiredBadge = () => field.required ? (
-    <div className="text-xs font-semibold uppercase bg-destructive/10 text-destructive rounded-full px-2 py-0.5">
+    <div className={cn("font-semibold uppercase bg-destructive/10 text-destructive rounded-full px-2 py-0.5", 
+      { 'text-[9px]': fontSize === 'sm', 'text-[10px]': fontSize === 'base', 'text-xs': fontSize === 'lg'}
+    )}>
       Required
     </div>
   ) : null;
@@ -41,218 +59,380 @@ const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
   };
 
   const getFieldPreview = () => {
-    switch (field.type) {
-      case 'text':
-      case 'date':
-        return (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">{field.label}</label>
-              <RequiredBadge />
-            </div>
-            {field.description && <p className="text-xs text-muted-foreground -mt-1">{field.description}</p>}
-            
-            {field.type === 'text' && <Input type="text" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />}
-            {field.type === 'date' && <Input type="date" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />}
-          </div>
-        );
-      case 'number':
-        const enabledInputs = field.options.enabledInputs || ['input'];
-        const value = field.defaultValue || 0;
-        const minRule = field.validation?.find(r => r.type === 'min');
-        const maxRule = field.validation?.find(r => r.type === 'max');
-        const min = minRule ? Number(minRule.value) : undefined;
-        const max = maxRule ? Number(maxRule.value) : undefined;
+    // This logic handles both togglable and non-togglable fields that might have a structured defaultValue
+    const isStructuredDefault = field.defaultValue && typeof field.defaultValue === 'object' && 'value' in field.defaultValue;
 
-        return (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">{field.label}</label>
-              <RequiredBadge />
-            </div>
-            {field.description && <p className="text-xs text-muted-foreground -mt-1">{field.description}</p>}
-            
-            <div className="space-y-3 pt-2">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                {enabledInputs.includes('input') && (
-                  <div className="relative w-full sm:w-40">
-                    <Input
-                      type="number"
-                      value={value}
-                      onChange={(e) => handleValueChange(e.target.valueAsNumber)}
-                      min={min}
-                      max={max}
-                      className={cn(field.options.unit ? "pr-12" : "")}
-                    />
-                    {field.options.unit && (
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                        <span className="text-muted-foreground sm:text-sm">{field.options.unit}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {enabledInputs.includes('stepper') && (
-                  <Stepper
-                    value={value}
-                    onValueChange={handleValueChange}
-                    min={min}
-                    max={max}
-                  />
-                )}
-              </div>
-              {enabledInputs.includes('slider') && (
-                <Slider
-                  value={[value]}
-                  onValueChange={(vals) => handleValueChange(vals[0])}
-                  min={min}
-                  max={max}
-                  step={1}
-                />
-              )}
-            </div>
-          </div>
-        );
-      case 'boolean':
-        if (field.options.displayAs === 'switch') {
-          return (
-            <div className="flex items-start space-x-3 p-2">
-              <Switch
-                id={`preview-${field.id}`}
-                checked={field.defaultValue || false}
-                onCheckedChange={(checked: boolean) => handleValueChange(checked)}
-                className="mt-1"
-              />
-              <div className="grid gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label htmlFor={`preview-${field.id}`} className="font-medium leading-none">
-                    {field.label}
-                  </label>
-                  <RequiredBadge />
-                </div>
-                {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
-              </div>
-            </div>
-          );
-        }
-        return (
-          <div className="flex items-start space-x-3 p-2">
-            <Checkbox
-              id={`preview-${field.id}`}
-              checked={field.defaultValue || false}
-              onChange={(e) => handleValueChange(e.target.checked)}
+    const value = isStructuredDefault ? field.defaultValue.value : field.defaultValue;
+    const isToggled = isStructuredDefault ? (field.defaultValue.toggled || false) : false;
+
+    const onRendererValueChange = (newValue: any) => {
+      // This function re-wraps the value if it was originally a structured object
+      if (isStructuredDefault) {
+        handleValueChange({ ...field.defaultValue, value: newValue });
+      } else {
+        handleValueChange(newValue);
+      }
+    };
+
+    // Create a temporary field with the unwrapped value to pass to the renderer
+    const tempField = { ...field, defaultValue: value };
+
+    if (field.options.togglable) {
+      const handleToggle = (toggled: boolean) => {
+        // Ensure we are updating a structured object, creating one if it doesn't exist
+        handleValueChange({ ...(isStructuredDefault ? field.defaultValue : { value }), toggled });
+      };
+
+      return (
+        <div className="space-y-1.5">
+          <div className="flex items-start space-x-3">
+             <Checkbox
+              id={`toggle-${field.id}`}
+              checked={isToggled}
+              onChange={(e) => handleToggle(e.target.checked)}
               className="mt-1"
             />
-            <div className="grid gap-1.5">
-              <div className="flex items-center justify-between">
-                <label htmlFor={`preview-${field.id}`} className="font-medium leading-none">
-                  {field.label}
-                </label>
-                <RequiredBadge />
-              </div>
-              {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
+            <div className="flex-1">
+              <label htmlFor={`toggle-${field.id}`} className={cn("font-medium", labelClasses, "cursor-pointer")}>{field.label}</label>
+               {field.description && !isToggled && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
             </div>
+            <RequiredBadge />
           </div>
-        );
-      case 'single-choice':
-        const singleChoices = field.options.choices || [];
-        if (field.options.displayAs === 'radio') {
-          return (
-            <fieldset>
-              <div className="flex items-center justify-between mb-1">
-                <legend className="text-sm font-medium truncate">
-                  {field.label}
-                </legend>
-                <RequiredBadge />
-              </div>
-              {field.description && <p className="text-xs text-muted-foreground mb-2">{field.description}</p>}
-              <RadioGroup
-                value={field.defaultValue}
-                onValueChange={handleValueChange}
-                className={getChoiceGroupLayoutClasses()}
+          <AnimatePresence>
+            {isToggled && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden pl-7"
               >
-                {singleChoices.map((choice) => (
-                  <div key={choice.value} className="flex items-center space-x-2">
-                    <RadioGroupItem value={choice.value} id={`${field.id}-${choice.value}`} />
-                    <label htmlFor={`${field.id}-${choice.value}`} className="truncate text-sm">{choice.label}</label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </fieldset>
-          );
-        } else { // Dropdown
-          return (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label htmlFor={`preview-${field.id}`} className="text-sm font-medium">
-                  {field.label}
-                </label>
-                <RequiredBadge />
-              </div>
-              {field.description && <p className="text-xs text-muted-foreground -mt-1">{field.description}</p>}
-              <Select onValueChange={handleValueChange} value={field.defaultValue}>
-                  <SelectTrigger id={`preview-${field.id}`}>
-                      <SelectValue placeholder="Select an option..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                      {singleChoices.map(choice => (
-                          <SelectItem key={choice.value} value={choice.value}>
-                              {choice.label}
-                          </SelectItem>
-                      ))}
-                  </SelectContent>
-              </Select>
-            </div>
-          )
-        }
-      case 'multiple-choice':
-        const multiChoices = field.options.choices || [];
-        const selectedValues = new Set(field.defaultValue || []);
-
-        return (
-          <fieldset>
-            <div className="flex items-center justify-between mb-1">
-              <legend className="text-sm font-medium truncate">
-                {field.label}
-              </legend>
-              <RequiredBadge />
-            </div>
-            {field.description && <p className="text-xs text-muted-foreground mb-2">{field.description}</p>}
-            <div className={getChoiceGroupLayoutClasses()}>
-              {multiChoices.map((choice) => (
-                <div key={choice.value} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`${field.id}-${choice.value}`}
-                    checked={selectedValues.has(choice.value)}
-                    onChange={(e) => {
-                      const newSelected = new Set(selectedValues);
-                      if (e.target.checked) {
-                        newSelected.add(choice.value);
-                      } else {
-                        newSelected.delete(choice.value);
-                      }
-                      handleValueChange(Array.from(newSelected));
-                    }}
-                  />
-                  <label htmlFor={`${field.id}-${choice.value}`} className="truncate text-sm">{choice.label}</label>
+                <div className="pt-2">
+                  <FieldRenderer field={tempField} fontSize={fontSize} onValueChange={onRendererValueChange} />
                 </div>
-              ))}
-            </div>
-          </fieldset>
-        );
-      default:
-        return (
-          <div className="p-2 border-dashed border-destructive bg-destructive/10 text-destructive text-xs rounded-md">
-            Unhandled Field Type: <strong>{field.type}</strong>
-          </div>
-        );
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      );
     }
+    
+    // Default rendering for non-togglable fields
+    return <FieldRenderer field={tempField} fontSize={fontSize} onValueChange={onRendererValueChange} />
   };
 
   return <div className="p-3">{getFieldPreview()}</div>;
 };
 
+// This new component contains the original rendering logic from getFieldPreview
+const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange: (value: any) => void }> = ({ field, fontSize, onValueChange: handleValueChange }) => {
+    const labelClasses = { sm: 'text-xs', base: 'text-sm', lg: 'text-base' }[fontSize];
+    const descriptionClasses = { sm: 'text-[11px]', base: 'text-xs', lg: 'text-sm' }[fontSize];
+    const RequiredBadge = () => field.required ? (
+      <div className={cn("font-semibold uppercase bg-destructive/10 text-destructive rounded-full px-2 py-0.5", { 'text-[9px]': fontSize === 'sm', 'text-[10px]': fontSize === 'base', 'text-xs': fontSize === 'lg'})}>Required</div>
+    ) : null;
+    const getChoiceGroupLayoutClasses = () => {
+      const layout = field.options.layout || { style: 'auto' };
+      if (layout.style === 'columns' && layout.columns) {
+        return `grid grid-cols-${layout.columns} gap-x-6 gap-y-2 pt-1`;
+      }
+      return "flex flex-wrap gap-x-6 gap-y-2 pt-1";
+    };
+
+  switch (field.type) {
+    case 'text':
+    case 'date':
+      return (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className={cn("font-medium", labelClasses)}>{field.label}</label>
+            <RequiredBadge />
+          </div>
+          {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+          
+          {field.type === 'text' && <Input type="text" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />}
+          {field.type === 'date' && <Input type="date" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />}
+        </div>
+      );
+    case 'number':
+      const enabledInputs = field.options.enabledInputs || ['input'];
+      const value = field.defaultValue || 0;
+      const minRule = field.validation?.find(r => r.type === 'min');
+      const maxRule = field.validation?.find(r => r.type === 'max');
+      const min = minRule ? Number(minRule.value) : undefined;
+      const max = maxRule ? Number(maxRule.value) : undefined;
+
+      return (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className={cn("font-medium", labelClasses)}>{field.label}</label>
+            <RequiredBadge />
+          </div>
+          {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+          
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              {enabledInputs.includes('input') && (
+                <div className="relative w-full sm:w-40">
+                  <Input
+                    type="number"
+                    value={value}
+                    onChange={(e) => handleValueChange(e.target.valueAsNumber)}
+                    min={min}
+                    max={max}
+                    className={cn(field.options.unit ? "pr-12" : "")}
+                  />
+                  {field.options.unit && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <span className="text-muted-foreground sm:text-sm">{field.options.unit}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {enabledInputs.includes('stepper') && (
+                <Stepper
+                  value={value}
+                  onValueChange={handleValueChange}
+                  min={min}
+                  max={max}
+                />
+              )}
+            </div>
+            {enabledInputs.includes('slider') && (
+              <Slider
+                value={[value]}
+                onValueChange={(vals) => handleValueChange(vals[0])}
+                min={min}
+                max={max}
+                step={1}
+              />
+            )}
+          </div>
+        </div>
+      );
+    case 'boolean':
+      if (field.options.displayAs === 'switch') {
+        return (
+          <div className="flex items-start space-x-3 p-2">
+            <Switch
+              id={`preview-${field.id}`}
+              checked={field.defaultValue || false}
+              onCheckedChange={(checked: boolean) => handleValueChange(checked)}
+              className="mt-1"
+            />
+            <div className="grid gap-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor={`preview-${field.id}`} className={cn("font-medium leading-none", labelClasses)}>
+                  {field.label}
+                </label>
+                <RequiredBadge />
+              </div>
+              {field.description && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div className="flex items-start space-x-3 p-2">
+          <Checkbox
+            id={`preview-${field.id}`}
+            checked={field.defaultValue || false}
+            onChange={(e) => handleValueChange(e.target.checked)}
+            className="mt-1"
+          />
+          <div className="grid gap-1.5">
+            <div className="flex items-center justify-between">
+              <label htmlFor={`preview-${field.id}`} className={cn("font-medium leading-none", labelClasses)}>
+                {field.label}
+              </label>
+              <RequiredBadge />
+            </div>
+            {field.description && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+          </div>
+        </div>
+      );
+    case 'single-choice':
+      const singleChoices = field.options.choices || [];
+      if (field.options.displayAs === 'radio') {
+        return (
+          <fieldset>
+            <div className="flex items-center justify-between mb-1">
+              <legend className={cn("font-medium truncate", labelClasses)}>
+                {field.label}
+              </legend>
+              <RequiredBadge />
+            </div>
+            {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+            <RadioGroup
+              value={field.defaultValue}
+              onValueChange={handleValueChange}
+              className={getChoiceGroupLayoutClasses()}
+            >
+              {singleChoices.map((choice) => (
+                <div key={choice.value} className="flex items-center space-x-2">
+                  <RadioGroupItem value={choice.value} id={`${field.id}-${choice.value}`} />
+                  <label htmlFor={`${field.id}-${choice.value}`} className={cn("truncate", labelClasses)}>{choice.label}</label>
+                </div>
+              ))}
+            </RadioGroup>
+          </fieldset>
+        );
+      } else { // Dropdown or Button Group
+        if (field.options.displayAs === 'button-group') {
+          return (
+             <fieldset>
+              <div className="flex items-center justify-between mb-1">
+                <legend className={cn("font-medium truncate", labelClasses)}>
+                  {field.label}
+                </legend>
+                <RequiredBadge />
+              </div>
+              {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+              <div className={getChoiceGroupLayoutClasses()}>
+                {singleChoices.map(choice => (
+                  <Button
+                    key={choice.value}
+                    variant={field.defaultValue === choice.value ? 'default' : 'outline'}
+                    onClick={() => handleValueChange(choice.value)}
+                    className={cn(
+                      field.defaultValue === choice.value && choice.color ? `bg-${choice.color}-600 hover:bg-${choice.color}-700` : '',
+                      field.defaultValue !== choice.value && choice.color ? `border-${choice.color}-500 text-${choice.color}-600 hover:bg-${choice.color}-500/10` : ''
+                    )}
+                  >
+                    {choice.label}
+                  </Button>
+                ))}
+              </div>
+            </fieldset>
+          )
+        }
+        // Default to Dropdown
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor={`preview-${field.id}`} className={cn("font-medium", labelClasses)}>
+                {field.label}
+              </label>
+              <RequiredBadge />
+            </div>
+            {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+            <Select onValueChange={handleValueChange} value={field.defaultValue}>
+                <SelectTrigger id={`preview-${field.id}`}>
+                    <SelectValue placeholder="Select an option..." />
+                </SelectTrigger>
+                <SelectContent>
+                    {singleChoices.map(choice => (
+                        <SelectItem key={choice.value} value={choice.value}>
+                            {choice.label}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+          </div>
+        )
+      }
+    case 'multiple-choice':
+      const multiChoices = field.options.choices || [];
+      const selectedValues = new Set(field.defaultValue || []);
+
+      if (field.options.displayAs === 'button-group') {
+        return (
+          <fieldset>
+            <div className="flex items-center justify-between mb-1">
+              <legend className={cn("font-medium truncate", labelClasses)}>
+                {field.label}
+              </legend>
+              <RequiredBadge />
+            </div>
+            {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+            <div className={getChoiceGroupLayoutClasses()}>
+              {multiChoices.map(choice => {
+                const isSelected = selectedValues.has(choice.value);
+                return (
+                  <Button
+                    key={choice.value}
+                    variant={isSelected ? 'default' : 'outline'}
+                    onClick={() => {
+                      const newSelected = new Set(selectedValues);
+                      if (isSelected) {
+                        newSelected.delete(choice.value);
+                      } else {
+                        newSelected.add(choice.value);
+                      }
+                      handleValueChange(Array.from(newSelected));
+                    }}
+                    className={cn(
+                      isSelected && choice.color ? `bg-${choice.color}-600 hover:bg-${choice.color}-700` : '',
+                      !isSelected && choice.color ? `border-${choice.color}-500 text-${choice.color}-600 hover:bg-${choice.color}-500/10` : ''
+                    )}
+                  >
+                    {choice.label}
+                  </Button>
+                )
+              })}
+            </div>
+          </fieldset>
+        )
+      }
+
+      return (
+        <fieldset>
+          <div className="flex items-center justify-between mb-1">
+            <legend className={cn("font-medium truncate", labelClasses)}>
+              {field.label}
+            </legend>
+            <RequiredBadge />
+          </div>
+          {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+          <div className={getChoiceGroupLayoutClasses()}>
+            {multiChoices.map((choice) => (
+              <div key={choice.value} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`${field.id}-${choice.value}`}
+                  checked={selectedValues.has(choice.value)}
+                  onChange={(e) => {
+                    const newSelected = new Set(selectedValues);
+                    if (e.target.checked) {
+                      newSelected.add(choice.value);
+                    } else {
+                      newSelected.delete(choice.value);
+                    }
+                    handleValueChange(Array.from(newSelected));
+                  }}
+                />
+                <label htmlFor={`${field.id}-${choice.value}`} className={cn("truncate", labelClasses)}>{choice.label}</label>
+              </div>
+            ))}
+          </div>
+        </fieldset>
+      );
+    case 'autocomplete':
+        return (
+            <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                    <label className={cn("font-medium", labelClasses)}>{field.label}</label>
+                    <RequiredBadge />
+                </div>
+                {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+                <Autocomplete
+                    options={field.options.choices || []}
+                    value={field.defaultValue || ''}
+                    onChange={handleValueChange}
+                    placeholder="Type or select an option..."
+                />
+            </div>
+        )
+    default:
+      return (
+        <div className="p-2 border-dashed border-destructive bg-destructive/10 text-destructive text-xs rounded-md">
+          Unhandled Field Type: <strong>{field.type}</strong>
+        </div>
+      );
+  }
+};
+
 // Individual field component with selection and editing
-const FieldComponent: React.FC<{ fieldId: string; sectionId: string }> = ({ fieldId, sectionId }) => {
+const FieldComponent: React.FC<{ fieldId: string; sectionId: string; fontSize?: FontSize }> = ({ fieldId, sectionId, fontSize }) => {
   const { getField, selectField, selectedFieldId, removeField, duplicateField } = useFormBuilderStoreV2();
   const field = getField(fieldId);
 
@@ -324,7 +504,7 @@ const FieldComponent: React.FC<{ fieldId: string; sectionId: string }> = ({ fiel
         
         {/* Field content */}
         <div className="flex-grow min-w-0">
-          <FieldPreview field={field} />
+          <FieldPreview field={field} fontSize={fontSize} />
         </div>
         
         {/* Action buttons - always rendered, visibility controlled by opacity */}
@@ -516,7 +696,7 @@ const SectionComponent: React.FC<{ sectionId: string }> = ({ sectionId }) => {
             <div className="flex flex-wrap gap-3 sm:gap-4">
               {section.fields.length > 0 ? (
                 section.fields.map(fieldId => (
-                  <FieldComponent key={fieldId} fieldId={fieldId} sectionId={sectionId} />
+                  <FieldComponent key={fieldId} fieldId={fieldId} sectionId={sectionId} fontSize={section.styling.fontSize} />
                 ))
               ) : (
                 <div className="col-span-full text-center py-6 sm:py-8 text-muted-foreground border-2 border-dashed rounded-lg">

@@ -6,12 +6,13 @@ import { TextareaField } from '@/components/ui/TextareaField';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 import { useFormBuilderStoreV2, Field } from '@/stores/formBuilderStore.v2';
-import { PiTrash, PiPlus } from 'react-icons/pi';
+import { PiTrash, PiPlus, PiPaintBrushBroadDuotone } from 'react-icons/pi';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/Switch';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
 
 // Color palette configuration
 const COLOR_PALETTE = [
@@ -50,8 +51,8 @@ const ColorPalette: React.FC<{
 };
 
 const ChoiceEditor: React.FC<{ 
-  choices: { value: string; label: string }[], 
-  onChange: (choices: { value: string; label: string }[]) => void 
+  choices: { value: string; label: string; color?: string }[], 
+  onChange: (choices: { value: string; label: string; color?: string }[]) => void 
 }> = ({ choices, onChange }) => {
 
   const generateValue = (label: string) => {
@@ -78,6 +79,16 @@ const ChoiceEditor: React.FC<{
     onChange(newChoices);
   };
 
+  const updateChoiceColor = (index: number, color: string) => {
+    const newChoices = choices.map((choice, i) => {
+      if (i === index) {
+        return { ...choice, color };
+      }
+      return choice;
+    });
+    onChange(newChoices);
+  };
+
   const removeChoice = (index: number) => {
     onChange(choices.filter((_, i) => i !== index));
   };
@@ -98,6 +109,22 @@ const ChoiceEditor: React.FC<{
       <div className="space-y-2">
         {choices.map((choice, index) => (
           <div key={index} className="flex items-center gap-2 p-1 border rounded">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className={cn("h-8 w-8 flex-shrink-0", choice.color && `bg-${choice.color}-500/80 hover:bg-${choice.color}-500`)}
+                >
+                  <PiPaintBrushBroadDuotone />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <div className="p-2">
+                  <ColorPalette selectedColor={choice.color || ''} onColorChange={(color) => updateChoiceColor(index, color)} />
+                </div>
+              </PopoverContent>
+            </Popover>
             <Input
               id={`choice-label-${index}`}
               placeholder="Choice Label"
@@ -182,7 +209,7 @@ const InspectorV2: React.FC = () => {
   };
 
   // Handle choice updates
-  const handleChoicesChange = (choices: { value: string; label: string }[]) => {
+  const handleChoicesChange = (choices: { value: string; label: string; color?: string }[]) => {
     updateLocalOptions({ choices });
   };
 
@@ -238,6 +265,36 @@ const InspectorV2: React.FC = () => {
                 selectedColor={selectedSection.styling.color}
                 onColorChange={handleSectionColorChange}
               />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-3 block">Font Size</label>
+              <div className="flex justify-stretch gap-2">
+                <Button
+                  size="sm"
+                  variant={selectedSection.styling.fontSize === 'sm' ? 'default' : 'outline'}
+                  onClick={() => updateSection(selectedFieldId, { styling: { ...selectedSection.styling, fontSize: 'sm' } })}
+                  className="flex-1"
+                >
+                  Small
+                </Button>
+                <Button
+                  size="sm"
+                  variant={(selectedSection.styling.fontSize === 'base' || !selectedSection.styling.fontSize) ? 'default' : 'outline'}
+                  onClick={() => updateSection(selectedFieldId, { styling: { ...selectedSection.styling, fontSize: 'base' } })}
+                  className="flex-1"
+                >
+                  Normal
+                </Button>
+                <Button
+                  size="sm"
+                  variant={selectedSection.styling.fontSize === 'lg' ? 'default' : 'outline'}
+                  onClick={() => updateSection(selectedFieldId, { styling: { ...selectedSection.styling, fontSize: 'lg' } })}
+                  className="flex-1"
+                >
+                  Large
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -327,6 +384,17 @@ const InspectorV2: React.FC = () => {
             <label htmlFor="field-required" className="text-sm font-medium">
               Required field
             </label>
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+            <div className="space-y-0.5">
+              <label htmlFor="field-togglable" className="text-sm font-medium">Togglable Input</label>
+              <p className="text-xs text-muted-foreground">Make this field collapsible.</p>
+            </div>
+            <Switch
+              id="field-togglable"
+              checked={localField.options.togglable}
+              onCheckedChange={(checked) => updateLocalOptions({ togglable: checked })}
+            />
           </div>
         </div>
 
@@ -432,9 +500,13 @@ const InspectorV2: React.FC = () => {
                       <>
                         <SelectItem value="radio">Radio Buttons</SelectItem>
                         <SelectItem value="dropdown">Dropdown</SelectItem>
+                        <SelectItem value="button-group">Button Group</SelectItem>
                       </>
                     ) : (
-                      <SelectItem value="checkboxGroup">Checkboxes</SelectItem>
+                      <>
+                        <SelectItem value="checkboxGroup">Checkboxes</SelectItem>
+                        <SelectItem value="button-group">Button Group</SelectItem>
+                      </>
                     )}
                   </SelectContent>
                 </Select>
@@ -482,6 +554,15 @@ const InspectorV2: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {localField.type === 'autocomplete' && (
+            <div className="space-y-4">
+              <ChoiceEditor
+                choices={localField.options.choices || []}
+                onChange={handleChoicesChange}
+              />
             </div>
           )}
         </div>

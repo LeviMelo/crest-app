@@ -8,7 +8,8 @@ import {
   PiToggleLeft, 
   PiListNumbers, 
   PiListDashes, 
-  PiCalendarDuotone
+  PiCalendarDuotone,
+  PiSparkleDuotone
 } from 'react-icons/pi';
 
 interface FieldTypeButton {
@@ -61,6 +62,13 @@ const fieldTypes: FieldTypeButton[] = [
     shortLabel: 'Date',
     icon: PiCalendarDuotone,
     description: 'Date picker input'
+  },
+  {
+    type: 'autocomplete',
+    label: 'Autocomplete',
+    shortLabel: 'Auto',
+    icon: PiSparkleDuotone,
+    description: 'Text input with suggestions'
   }
 ];
 

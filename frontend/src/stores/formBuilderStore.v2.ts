@@ -10,7 +10,8 @@ export type FieldType =
   | 'boolean'
   | 'single-choice'
   | 'multiple-choice'
-  | 'date';
+  | 'date'
+  | 'autocomplete';
 
 export interface ValidationRule {
   type: 'required' | 'min' | 'max' | 'pattern';
@@ -20,13 +21,14 @@ export interface ValidationRule {
 
 export interface FieldOptions {
   unit?: string;
-  choices?: { value: string; label: string }[];
-  displayAs?: 'radio' | 'dropdown' | 'checkboxGroup' | 'slider' | 'stepper' | 'checkbox' | 'switch';
+  choices?: { value: string; label: string; color?: string }[];
+  displayAs?: 'radio' | 'dropdown' | 'checkboxGroup' | 'slider' | 'stepper' | 'checkbox' | 'switch' | 'button-group';
   enabledInputs?: string[];
   layout?: {
     style: 'auto' | 'columns';
     columns?: number;
   };
+  togglable?: boolean;
   [key: string]: any;
 }
 
@@ -52,6 +54,7 @@ export interface Field {
 export interface SectionStyling {
   color: string;
   background?: string;
+  fontSize?: 'sm' | 'base' | 'lg';
   [key: string]: any;
 }
 
@@ -155,14 +158,15 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
     description: '',
     required: false,
     validation: [],
+    options: {},
     styling: { color: 'primary', width: 'normal' as const }
   };
 
   switch (type) {
     case 'text':
-      return { ...base, options: {}, defaultValue: '' };
+      return { ...base, options: { togglable: false }, defaultValue: '' };
     case 'number':
-      return { ...base, options: { unit: '', enabledInputs: ['input'] }, defaultValue: 0 };
+      return { ...base, options: { unit: '', enabledInputs: ['input'], togglable: false }, defaultValue: { toggled: false, value: 0 } };
     case 'boolean':
       return { ...base, options: { displayAs: 'checkbox' }, defaultValue: false };
     case 'single-choice':
@@ -174,9 +178,10 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
             { value: 'option_2', label: 'Option 2' }
           ],
           displayAs: 'radio',
-          layout: { style: 'auto' }
+          layout: { style: 'auto' },
+          togglable: false
         },
-        defaultValue: 'option_1'
+        defaultValue: { toggled: false, value: 'option_1' }
       };
     case 'multiple-choice':
       return {
@@ -187,14 +192,27 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
             { value: 'option_2', label: 'Option 2' }
           ],
           displayAs: 'checkboxGroup',
-          layout: { style: 'auto' }
+          layout: { style: 'auto' },
+          togglable: false
         },
-        defaultValue: ['option_1']
+        defaultValue: { toggled: false, value: ['option_1'] }
       };
     case 'date':
-      return { ...base, options: {}, defaultValue: '' };
+      return { ...base, options: { togglable: false }, defaultValue: '' };
+    case 'autocomplete':
+      return {
+        ...base,
+        options: { 
+          choices: [
+            { value: 'suggestion_1', label: 'Suggestion 1' },
+            { value: 'suggestion_2', label: 'Suggestion 2' }
+          ],
+          togglable: false
+        },
+        defaultValue: ''
+      };
     default:
-      return { ...base, options: {}, defaultValue: null };
+      return { ...base, options: { togglable: false }, defaultValue: null };
   }
 };
 
@@ -514,7 +532,7 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
       title: 'New Section',
       fields: [],
       collapsed: false,
-      styling: { color: 'secondary' }
+      styling: { color: 'secondary', fontSize: 'base' }
     };
 
     set(produce((state: FormBuilderState) => {
