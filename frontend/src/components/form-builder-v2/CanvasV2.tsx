@@ -398,20 +398,32 @@ const FieldRenderer: React.FC<{
     case 'single-choice': {
       const singleChoices = field.options.choices || [];
       const fallbackLabel = field.options.textFallbackLabel || 'Other';
-      const isOtherValue = field.defaultValue && !singleChoices.some(c => c.value === field.defaultValue);
-      const otherValue = isOtherValue ? field.defaultValue : '';
+
+      // This is a new, more complex value structure
+      const defaultValue = field.defaultValue || { selected: [], custom: [] };
+      
+      const isPredefinedValue = typeof defaultValue === 'string' && singleChoices.some(c => c.value === defaultValue);
+      
+      // Adapt the value for the MultiAutocompleteInput
+      const otherValues = {
+        selected: isPredefinedValue ? [defaultValue] : [],
+        custom: typeof defaultValue === 'string' && !isPredefinedValue ? [defaultValue] : []
+      };
 
       const renderFallbackInput = () => (
         field.options.textFallback && (
-          <div className="mt-2">
-            <InputField
-              id={`${field.id}-fallback`}
-              label={fallbackLabel}
-              placeholder="Please specify..."
-              value={otherValue}
-              onChange={(e) => handleValueChange(e.target.value)}
-              containerClassName="gap-1"
-              className="h-9"
+          <div className="mt-2 space-y-2">
+            <label className={cn("text-sm font-medium", labelClasses)}>{fallbackLabel}</label>
+            <MultiAutocompleteInput
+              options={[]} // No predefined "other" options, only custom
+              value={otherValues}
+              onChange={(newVal) => {
+                // For single choice, we only care about the last custom value entered
+                const customValue = newVal.custom.length > 0 ? newVal.custom[newVal.custom.length - 1] : null;
+                handleValueChange(customValue);
+              }}
+              placeholder="Type to add custom value..."
+              color={field.styling.color}
             />
           </div>
         )
@@ -432,7 +444,7 @@ const FieldRenderer: React.FC<{
               </>
             )}
             <RadioGroup
-              value={isOtherValue ? '' : field.defaultValue}
+              value={isPredefinedValue ? field.defaultValue : ''}
               onValueChange={(value: string) => handleValueChange(value)}
               className={getChoiceGroupLayoutClasses()}
             >
@@ -465,9 +477,9 @@ const FieldRenderer: React.FC<{
                 {singleChoices.map(choice => (
                   <Button
                     key={choice.value}
-                    variant={field.defaultValue === choice.value ? 'default' : 'outline'}
+                    variant={choice.value === field.defaultValue ? 'default' : 'outline'}
                     onClick={() => handleValueChange(choice.value)}
-                    className={getButtonColorClasses(field.styling.color, field.defaultValue === choice.value)}
+                    className={getButtonColorClasses(field.styling.color, choice.value === field.defaultValue)}
                   >
                     {choice.label}
                   </Button>
@@ -491,7 +503,10 @@ const FieldRenderer: React.FC<{
                 {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
               </>
             )}
-            <Select onValueChange={handleValueChange} value={isOtherValue ? '' : field.defaultValue}>
+            <Select 
+              onValueChange={handleValueChange} 
+              value={isPredefinedValue ? field.defaultValue : ''}
+            >
                 <SelectTrigger id={`preview-${field.id}`}>
                     <SelectValue placeholder="Select an option..." />
                 </SelectTrigger>
@@ -511,29 +526,28 @@ const FieldRenderer: React.FC<{
     case 'multiple-choice': {
       const multiChoices = field.options.choices || [];
       
-      const defaultValue = (field.defaultValue || {}) as { selected?: string[], otherValue?: string };
+      const defaultValue = (field.defaultValue || {}) as { selected?: string[], custom?: string[] };
       const selectedValues = new Set(defaultValue.selected || []);
-      const otherValue = defaultValue.otherValue || '';
+      const customValues = defaultValue.custom || [];
       const fallbackLabelMulti = field.options.textFallbackLabel || 'Other';
 
-      const handleMultiChange = (newSelected: Set<string>, newOtherValue?: string) => {
+      const handleMultiChange = (newSelected: Set<string>, newCustom?: string[]) => {
         handleValueChange({
             selected: Array.from(newSelected),
-            otherValue: newOtherValue !== undefined ? newOtherValue : otherValue,
+            custom: newCustom !== undefined ? newCustom : customValues,
         });
       };
       
       const renderFallbackInput = () => (
         field.options.textFallback && (
-          <div className="mt-2">
-            <InputField
-              id={`${field.id}-fallback`}
-              label={fallbackLabelMulti}
-              placeholder="Please specify..."
-              value={otherValue}
-              onChange={(e) => handleMultiChange(selectedValues, e.target.value)}
-              containerClassName="gap-1"
-              className="h-9"
+          <div className="mt-2 space-y-2">
+            <label className={cn("text-sm font-medium", labelClasses)}>{fallbackLabelMulti}</label>
+            <MultiAutocompleteInput
+              options={[]} // No predefined "other" options
+              value={{ selected: [], custom: customValues }}
+              onChange={(newVal) => handleMultiChange(selectedValues, newVal.custom)}
+              placeholder="Type to add custom values..."
+              color={field.styling.color}
             />
           </div>
         )

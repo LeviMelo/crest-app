@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { PiCheck, PiX } from 'react-icons/pi';
 import { Button } from './Button';
 import { Input } from './Input';
@@ -6,15 +6,18 @@ import { Popover, PopoverContent, PopoverTrigger } from './Popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './Command';
 import { cn } from '@/lib/utils';
 
-interface MultiAutocompleteProps {
+// This is a completely new, more robust component for handling multiple selections with custom additions.
+// It will be used for the 'autocomplete' variant of the Text field and the 'textFallback' of Choice fields.
+
+interface MultiAutocompleteInputProps {
   options: { value: string; label: string }[];
   value: {
     selected: string[];
     custom: string[];
   };
-  onChange: (value: { selected: string[]; custom:string[] }) => void;
+  onChange: (value: { selected: string[]; custom: string[] }) => void;
   placeholder?: string;
-  color?: string;
+  color?: string; // For styling the tags
 }
 
 const TAG_COLOR_MAP: { [key: string]: string } = {
@@ -32,7 +35,7 @@ const TAG_COLOR_MAP: { [key: string]: string } = {
   cyan: 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-200',
 };
 
-export const MultiAutocompleteInput: React.FC<MultiAutocompleteProps> = ({
+export const MultiAutocompleteInput: React.FC<MultiAutocompleteInputProps> = ({
   options,
   value,
   onChange,
@@ -43,28 +46,35 @@ export const MultiAutocompleteInput: React.FC<MultiAutocompleteProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
-  const selectedValues = new Set(value.selected);
+  // Ensure value is always in the correct format
+  const safeValue = {
+    selected: Array.isArray(value?.selected) ? value.selected : [],
+    custom: Array.isArray(value?.custom) ? value.custom : [],
+  };
+
+  const selectedValues = new Set(safeValue.selected);
 
   const handleUnselect = (optionValue: string) => {
-    onChange({ ...value, selected: value.selected.filter(v => v !== optionValue) });
+    onChange({ ...safeValue, selected: safeValue.selected.filter(v => v !== optionValue) });
   };
   
   const handleRemoveCustom = (customValue: string) => {
-    onChange({ ...value, custom: value.custom.filter(v => v !== customValue) });
+    onChange({ ...safeValue, custom: safeValue.custom.filter(v => v !== customValue) });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && inputValue) {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && inputValue.trim()) {
       e.preventDefault();
-      if (!value.custom.includes(inputValue) && !options.some(opt => opt.label === inputValue)) {
-        onChange({ ...value, custom: [...value.custom, inputValue] });
+      const newCustomValue = inputValue.trim();
+      if (!safeValue.custom.includes(newCustomValue) && !options.some(opt => opt.label.toLowerCase() === newCustomValue.toLowerCase())) {
+        onChange({ ...safeValue, custom: [...safeValue.custom, newCustomValue] });
         setInputValue('');
       }
     } else if (e.key === 'Backspace' && !inputValue) {
-      if (value.custom.length > 0) {
-        handleRemoveCustom(value.custom[value.custom.length - 1]);
-      } else if (value.selected.length > 0) {
-        handleUnselect(value.selected[value.selected.length - 1]);
+      if (safeValue.custom.length > 0) {
+        handleRemoveCustom(safeValue.custom[safeValue.custom.length - 1]);
+      } else if (safeValue.selected.length > 0) {
+        handleUnselect(safeValue.selected[safeValue.selected.length - 1]);
       }
     }
   };
@@ -72,71 +82,67 @@ export const MultiAutocompleteInput: React.FC<MultiAutocompleteProps> = ({
   const selectedOptions = options.filter(opt => selectedValues.has(opt.value));
   const displayedItems = [
     ...selectedOptions.map(opt => ({ type: 'selected' as const, ...opt })),
-    ...value.custom.map(val => ({ type: 'custom' as const, value: val, label: val }))
+    ...safeValue.custom.map(val => ({ type: 'custom' as const, value: val, label: val }))
   ];
 
   const getTagStyle = (itemType: 'selected' | 'custom'): React.CSSProperties => {
     if (color.startsWith('#') && itemType === 'selected') {
-        return { backgroundColor: `${color}33` };
+      return { backgroundColor: `${color}33`, color: color };
     }
     return {};
   }
   
   const getTagClassName = (itemType: 'selected' | 'custom'): string => {
     if (itemType === 'custom') return 'bg-secondary text-secondary-foreground';
-    
-    if (color.startsWith('#')) return '';
-
+    if (color.startsWith('#')) return 'border border-current';
     return TAG_COLOR_MAP[color] || TAG_COLOR_MAP.primary;
   }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <div className="group w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-        <div className="flex flex-wrap gap-1.5 p-2">
-          {displayedItems.map((item) => (
-            <div
-              key={`${item.type}-${item.value}`}
-              className={cn(
-                "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                getTagClassName(item.type)
-              )}
-              style={getTagStyle(item.type)}
-            >
-              {item.label}
-              <button
-                onClick={() => item.type === 'selected' ? handleUnselect(item.value) : handleRemoveCustom(item.value)}
-                className="rounded-full hover:bg-black/10 p-0.5"
+      <PopoverTrigger asChild>
+        <div className="group w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+          <div className="flex flex-wrap gap-1.5 p-2 items-center">
+            {displayedItems.map((item) => (
+              <div
+                key={`${item.type}-${item.value}`}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                  getTagClassName(item.type)
+                )}
+                style={getTagStyle(item.type)}
               >
-                <PiX className="h-3 w-3" aria-hidden="true" />
-                <span className="sr-only">Remove {item.label}</span>
-              </button>
-            </div>
-          ))}
-          <PopoverTrigger asChild>
-            <Input
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={displayedItems.length > 0 ? '' : placeholder}
-              className="flex-1 bg-transparent border-none shadow-none h-auto p-0 focus-visible:ring-0"
-              onFocus={() => setIsOpen(true)}
-            />
-          </PopoverTrigger>
+                {item.label}
+                <button
+                  onClick={() => item.type === 'selected' ? handleUnselect(item.value) : handleRemoveCustom(item.value)}
+                  className="rounded-full hover:bg-black/10 p-0.5"
+                >
+                  <PiX className="h-3 w-3" aria-hidden="true" />
+                  <span className="sr-only">Remove {item.label}</span>
+                </button>
+              </div>
+            ))}
+            <Command>
+              <CommandInput
+                ref={inputRef}
+                value={inputValue}
+                onValueChange={setInputValue}
+                onKeyDown={handleKeyDown}
+                placeholder={displayedItems.length > 0 ? '' : placeholder}
+                className="flex-1 bg-transparent border-none shadow-none h-auto p-0 focus-visible:ring-0 min-w-[120px]"
+                onFocus={() => setIsOpen(true)}
+              />
+            </Command>
+          </div>
         </div>
-      </div>
+      </PopoverTrigger>
 
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command>
-          <CommandInput 
-            ref={inputRef}
-            placeholder="Search..."
-            value={inputValue}
-            onValueChange={setInputValue}
-          />
           <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandEmpty>
+                {inputValue.trim() ? `Press Enter to add "${inputValue.trim()}"` : 'No results found.'}
+            </CommandEmpty>
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = selectedValues.has(option.value);
@@ -147,7 +153,7 @@ export const MultiAutocompleteInput: React.FC<MultiAutocompleteProps> = ({
                       if (isSelected) {
                         handleUnselect(option.value);
                       } else {
-                        onChange({ ...value, selected: [...value.selected, option.value] });
+                        onChange({ ...safeValue, selected: [...safeValue.selected, option.value] });
                       }
                       setInputValue('');
                     }}
