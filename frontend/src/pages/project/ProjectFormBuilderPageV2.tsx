@@ -4,19 +4,23 @@ import ToolboxV2 from '@/components/form-builder-v2/ToolboxV2';
 import CanvasV2 from '@/components/form-builder-v2/CanvasV2';
 import InspectorV2 from '@/components/form-builder-v2/InspectorV2';
 import { Button } from '@/components/ui/Button';
-import { useFormBuilderStoreV2 } from '@/stores/formBuilderStore.v2';
-import { PiSquaresFourDuotone, PiFloppyDiskDuotone, PiPlus, PiWrench, PiEye } from 'react-icons/pi';
+import { useFormBuilderStoreV2, Form } from '@/stores/formBuilderStore.v2';
+import { PiSquaresFourDuotone, PiFloppyDiskDuotone, PiPlus, PiWrench, PiEye, PiCode } from 'react-icons/pi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
 import { InputField } from '@/components/ui/InputField';
 import { TextareaField } from '@/components/ui/TextareaField';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/Dialog';
+import JsonEditor from '@/components/form-builder/JsonEditor';
 
 type MobileTab = 'toolbox' | 'canvas' | 'inspector';
 
 const ProjectFormBuilderPageV2: React.FC = () => {
   const { 
     currentForm, 
+    projectForms, 
     createNewForm, 
+    loadForm, 
     saveForm, 
     updateFormMetadata, 
     isSaving,
@@ -25,17 +29,25 @@ const ProjectFormBuilderPageV2: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<MobileTab>('canvas');
   const [isFormSettingsOpen, setIsFormSettingsOpen] = useState(false);
+  const [isJsonEditorOpen, setIsJsonEditorOpen] = useState(false);
+  const [activeFormId, setActiveFormId] = useState<string | null>(null);
 
-  // Initialize with a new form if none exists
   useEffect(() => {
-    if (!currentForm) {
-      createNewForm('proj_crest_001'); // Using the mock project ID
+    if (!activeFormId && projectForms.length > 0) {
+      setActiveFormId(projectForms[0].id);
     }
-  }, [currentForm, createNewForm]);
+  }, [projectForms, activeFormId]);
+
+  useEffect(() => {
+    if (activeFormId && (!currentForm || currentForm.id !== activeFormId)) {
+      loadForm(activeFormId);
+    }
+  }, [activeFormId, loadForm, currentForm]);
 
   const handleCreateNew = () => {
     createNewForm('proj_crest_001');
-    setActiveTab('canvas');
+    const newFormId = useFormBuilderStoreV2.getState().currentForm?.id;
+    if(newFormId) setActiveFormId(newFormId);
   };
 
   const handleSave = async () => {
@@ -44,6 +56,10 @@ const ProjectFormBuilderPageV2: React.FC = () => {
     } catch (error) {
       console.error('Failed to save form:', error);
     }
+  };
+
+  const handleFormSelect = (formId: string) => {
+    setActiveFormId(formId);
   };
 
   const tabs = [
@@ -56,6 +72,7 @@ const ProjectFormBuilderPageV2: React.FC = () => {
     <div className="space-y-4 sm:space-y-6 flex flex-col min-h-0">
       <PageHeader
         title="Form Builder V2"
+        subtitle="Design and configure your dynamic data collection forms for this project."
         icon={PiSquaresFourDuotone}
       >
         <div className="mb-4">
@@ -77,6 +94,10 @@ const ProjectFormBuilderPageV2: React.FC = () => {
           <Button onClick={handleCreateNew} variant="outline" size="sm">
             <PiPlus className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">New Form</span>
+          </Button>
+          <Button variant="outline" onClick={() => setIsJsonEditorOpen(!isJsonEditorOpen)} disabled={!currentForm}>
+              <PiCode className="mr-2" />
+              {isJsonEditorOpen ? 'Hide' : 'View'} JSON
           </Button>
           <Button 
             onClick={handleSave} 
@@ -184,6 +205,19 @@ const ProjectFormBuilderPageV2: React.FC = () => {
             <InspectorV2 />
           </div>
         </div>
+      </div>
+
+      {/* JSON Editor Drawer */}
+      <div className={cn(
+        "mt-6 transition-all duration-500 ease-in-out overflow-hidden",
+        isJsonEditorOpen ? "max-h-[1000px] opacity-100 py-4" : "max-h-0 opacity-0"
+      )}>
+        <JsonEditor
+          title="Current Form"
+          jsonString={currentForm ? JSON.stringify(currentForm, null, 2) : "{}"}
+          onJsonChange={() => {}} // Read-only, so no-op
+          readOnly
+        />
       </div>
     </div>
   );

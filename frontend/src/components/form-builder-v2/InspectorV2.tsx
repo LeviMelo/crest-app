@@ -13,8 +13,9 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
+import { HexColorPicker } from 'react-colorful';
 
-// Color palette configuration
+// Expanded color palette configuration
 const COLOR_PALETTE = [
   { name: 'primary', label: 'Primary', className: 'bg-primary hover:bg-primary/80', borderClass: 'border-primary' },
   { name: 'secondary', label: 'Secondary', className: 'bg-slate-500 hover:bg-slate-600', borderClass: 'border-slate-500' },
@@ -22,30 +23,62 @@ const COLOR_PALETTE = [
   { name: 'success', label: 'Success', className: 'bg-emerald-500 hover:bg-emerald-600', borderClass: 'border-emerald-500' },
   { name: 'warning', label: 'Warning', className: 'bg-orange-500 hover:bg-orange-600', borderClass: 'border-orange-500' },
   { name: 'danger', label: 'Danger', className: 'bg-red-500 hover:bg-red-600', borderClass: 'border-red-500' },
+  // Adding more colors
+  { name: 'blue', label: 'Blue', className: 'bg-blue-500 hover:bg-blue-600', borderClass: 'border-blue-500' },
+  { name: 'indigo', label: 'Indigo', className: 'bg-indigo-500 hover:bg-indigo-600', borderClass: 'border-indigo-500' },
+  { name: 'purple', label: 'Purple', className: 'bg-purple-500 hover:bg-purple-600', borderClass: 'border-purple-500' },
+  { name: 'pink', label: 'Pink', className: 'bg-pink-500 hover:bg-pink-600', borderClass: 'border-pink-500' },
+  { name: 'teal', label: 'Teal', className: 'bg-teal-500 hover:bg-teal-600', borderClass: 'border-teal-500' },
+  { name: 'cyan', label: 'Cyan', className: 'bg-cyan-500 hover:bg-cyan-600', borderClass: 'border-cyan-500' },
 ];
 
 const ColorPalette: React.FC<{
   selectedColor: string;
   onColorChange: (color: string) => void;
 }> = ({ selectedColor, onColorChange }) => {
+  const isCustomColor = selectedColor && !COLOR_PALETTE.some(p => p.name === selectedColor);
+
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-      {COLOR_PALETTE.map((color) => (
-        <button
-          key={color.name}
-          type="button"
-          onClick={() => onColorChange(color.name)}
-          className={cn(
-            "w-8 h-8 sm:w-10 sm:h-10 rounded-lg border-2 transition-all",
-            color.className,
-            selectedColor === color.name 
-              ? `ring-2 ring-offset-2 ring-primary ${color.borderClass}` 
-              : 'border-transparent hover:border-gray-300'
-          )}
-          title={color.label}
-          aria-label={`Select ${color.label} color`}
-        />
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-6 gap-px bg-border rounded-md overflow-hidden border">
+        {COLOR_PALETTE.map((color) => (
+          <button
+            key={color.name}
+            type="button"
+            onClick={() => onColorChange(color.name)}
+            className={cn(
+              "w-full aspect-square transition-all",
+              color.className,
+              selectedColor === color.name
+                ? `ring-2 ring-offset-1 ring-offset-background ring-primary`
+                : 'hover:scale-110'
+            )}
+            title={color.label}
+          />
+        ))}
+      </div>
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="w-full justify-start text-sm">
+             <div className="flex items-center gap-2">
+                <div
+                  className="w-5 h-5 rounded border"
+                  style={{ backgroundColor: isCustomColor ? selectedColor : 'hsl(var(--muted))' }}
+                />
+                <span className={cn(!isCustomColor && "text-muted-foreground")}>
+                  {isCustomColor ? selectedColor.toUpperCase() : 'Custom...'}
+                </span>
+             </div>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 border-none">
+            <HexColorPicker
+              color={isCustomColor ? selectedColor : '#aabbcc'}
+              onChange={onColorChange}
+            />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 };
@@ -554,15 +587,6 @@ const InspectorV2: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {localField.type === 'autocomplete' && (
-            <div className="space-y-4">
-              <ChoiceEditor
-                choices={localField.options.choices || []}
-                onChange={handleChoicesChange}
-              />
             </div>
           )}
         </div>

@@ -8,27 +8,39 @@ const Slider = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
 >(({ className, ...props }, ref) => {
   const { min = 0, max = 100, value = [0] } = props;
-  const isBipolar = min < 0 && max > 0;
   const currentValue = value[0];
+  const isBipolar = min < 0 && max > 0;
 
+  // This function calculates the correct 'left' and 'right' CSS properties 
+  // for the slider's range to ensure it always fills from the '0' point.
   const getRangeStyle = (): React.CSSProperties => {
+    // For a standard unipolar slider (e.g., 0-100), no special styles are needed.
+    // The range will automatically fill from the start.
     if (!isBipolar) {
-      return {}; // Default behavior for unipolar sliders
+      return {};
     }
 
+    // For a bipolar slider (e.g., -100 to 100), we calculate positions as percentages.
     const totalRange = max - min;
-    const zeroPosition = (-min / totalRange) * 100;
-    const valuePosition = ((currentValue - min) / totalRange) * 100;
+    if (totalRange <= 0) return {}; // Avoid division by zero
 
+    // Find the position of '0' on the track.
+    const zeroPositionPercent = (-min / totalRange) * 100;
+    // Find the position of the current value on the track.
+    const valuePositionPercent = ((currentValue - min) / totalRange) * 100;
+
+    // If the value is positive, the range fills from '0' to the current value.
     if (currentValue >= 0) {
       return {
-        left: `${zeroPosition}%`,
-        right: `${100 - valuePosition}%`,
+        left: `${zeroPositionPercent}%`,
+        right: `${100 - valuePositionPercent}%`,
       };
-    } else { // currentValue < 0
+    } 
+    // If the value is negative, the range fills from the current value to '0'.
+    else {
       return {
-        left: `${valuePosition}%`,
-        right: `${100 - zeroPosition}%`,
+        left: `${valuePositionPercent}%`,
+        right: `${100 - zeroPositionPercent}%`,
       };
     }
   };

@@ -1,5 +1,5 @@
 // src/components/form-builder/JsonEditor.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Editor from 'react-simple-code-editor';
 // @ts-ignore - prism-core has no type definitions, this is safe to ignore
 import { highlight, languages } from 'prismjs/components/prism-core';
@@ -7,18 +7,22 @@ import 'prismjs/components/prism-json'; // This MUST be imported to register the
 import 'prismjs/themes/prism-tomorrow.css'; 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { cn } from '@/lib/utils'; // Import cn for conditional classes
+import { Button } from '../ui/Button';
+import { PiCheck, PiCopy } from 'react-icons/pi';
 
 interface JsonEditorProps {
   title: string;
   jsonString: string;
   onJsonChange: (value: string) => void;
+  readOnly?: boolean;
 }
 
-const JsonEditor: React.FC<JsonEditorProps> = ({ title, jsonString, onJsonChange }) => {
-  const [error, setError] = React.useState<string | null>(null);
-  const [isMobile, setIsMobile] = React.useState(false);
+const JsonEditor: React.FC<JsonEditorProps> = ({ title, jsonString, onJsonChange, readOnly = false }) => {
+  const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const checkIsMobile = () => setIsMobile(window.innerWidth < 1024);
     checkIsMobile();
     window.addEventListener('resize', checkIsMobile);
@@ -35,12 +39,23 @@ const JsonEditor: React.FC<JsonEditorProps> = ({ title, jsonString, onJsonChange
     }
   };
 
+  const handleCopy = () => {
+    // Implement copy functionality
+    setCopied(true);
+  };
+
   return (
     <Card className="h-full flex flex-col min-h-[300px] lg:min-h-[400px]">
       <CardHeader className="flex-shrink-0">
         <CardTitle className="text-lg lg:text-xl">{title}</CardTitle>
       </CardHeader>
       <CardContent className="flex-grow relative p-3 lg:p-6">
+        <div className="flex justify-between items-center mb-2 flex-shrink-0">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          <Button variant="ghost" size="sm" onClick={handleCopy}>
+            {copied ? <PiCheck className="text-emerald-500"/> : <PiCopy/>}
+          </Button>
+        </div>
         <div className="absolute inset-3 lg:inset-6">
           <Editor
             value={jsonString}
@@ -58,6 +73,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({ title, jsonString, onJsonChange
               fontSize: isMobile ? 11 : 12,
               lineHeight: isMobile ? 1.3 : 1.4,
             }}
+            readOnly={readOnly}
           />
         </div>
       </CardContent>

@@ -10,8 +10,7 @@ export type FieldType =
   | 'boolean'
   | 'single-choice'
   | 'multiple-choice'
-  | 'date'
-  | 'autocomplete';
+  | 'date';
 
 export interface ValidationRule {
   type: 'required' | 'min' | 'max' | 'pattern';
@@ -199,18 +198,6 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
       };
     case 'date':
       return { ...base, options: { togglable: false }, defaultValue: '' };
-    case 'autocomplete':
-      return {
-        ...base,
-        options: { 
-          choices: [
-            { value: 'suggestion_1', label: 'Suggestion 1' },
-            { value: 'suggestion_2', label: 'Suggestion 2' }
-          ],
-          togglable: false
-        },
-        defaultValue: ''
-      };
     default:
       return { ...base, options: { togglable: false }, defaultValue: null };
   }

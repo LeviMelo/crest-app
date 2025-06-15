@@ -17,7 +17,26 @@ import { Switch } from '@/components/ui/Switch';
 import { Combobox } from '@/components/ui/Combobox';
 import { Input } from '@/components/ui/Input';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Autocomplete } from "../ui/Autocomplete";
+
+// Allow custom CSS properties
+interface CSSPropertiesWithVars extends React.CSSProperties {
+  [key: `--${string}`]: string | number;
+}
+
+const BUTTON_COLOR_MAP: { [key: string]: { selected: string; unselected: string } } = {
+  primary: { selected: 'bg-primary text-primary-foreground hover:bg-primary/90', unselected: 'border-primary text-primary hover:bg-primary/10' },
+  secondary: { selected: 'bg-slate-500 text-white hover:bg-slate-600', unselected: 'border-slate-500 text-slate-600 hover:bg-slate-500/10' },
+  accent: { selected: 'bg-amber-500 text-white hover:bg-amber-600', unselected: 'border-amber-500 text-amber-600 hover:bg-amber-500/10' },
+  success: { selected: 'bg-emerald-500 text-white hover:bg-emerald-600', unselected: 'border-emerald-500 text-emerald-600 hover:bg-emerald-500/10' },
+  warning: { selected: 'bg-orange-500 text-white hover:bg-orange-600', unselected: 'border-orange-500 text-orange-600 hover:bg-orange-500/10' },
+  danger: { selected: 'bg-red-500 text-white hover:bg-red-600', unselected: 'border-red-500 text-red-600 hover:bg-red-500/10' },
+  blue: { selected: 'bg-blue-500 text-white hover:bg-blue-600', unselected: 'border-blue-500 text-blue-600 hover:bg-blue-500/10' },
+  indigo: { selected: 'bg-indigo-500 text-white hover:bg-indigo-600', unselected: 'border-indigo-500 text-indigo-600 hover:bg-indigo-500/10' },
+  purple: { selected: 'bg-purple-500 text-white hover:bg-purple-600', unselected: 'border-purple-500 text-purple-600 hover:bg-purple-500/10' },
+  pink: { selected: 'bg-pink-500 text-white hover:bg-pink-600', unselected: 'border-pink-500 text-pink-600 hover:bg-pink-500/10' },
+  teal: { selected: 'bg-teal-500 text-white hover:bg-teal-600', unselected: 'border-teal-500 text-teal-600 hover:bg-teal-500/10' },
+  cyan: { selected: 'bg-cyan-500 text-white hover:bg-cyan-600', unselected: 'border-cyan-500 text-cyan-600 hover:bg-cyan-500/10' },
+};
 
 type FontSize = 'sm' | 'base' | 'lg';
 
@@ -59,14 +78,12 @@ const FieldPreview: React.FC<{ field: Field; fontSize?: FontSize }> = ({ field, 
   };
 
   const getFieldPreview = () => {
-    // This logic handles both togglable and non-togglable fields that might have a structured defaultValue
     const isStructuredDefault = field.defaultValue && typeof field.defaultValue === 'object' && 'value' in field.defaultValue;
 
     const value = isStructuredDefault ? field.defaultValue.value : field.defaultValue;
     const isToggled = isStructuredDefault ? (field.defaultValue.toggled || false) : false;
 
     const onRendererValueChange = (newValue: any) => {
-      // This function re-wraps the value if it was originally a structured object
       if (isStructuredDefault) {
         handleValueChange({ ...field.defaultValue, value: newValue });
       } else {
@@ -74,27 +91,48 @@ const FieldPreview: React.FC<{ field: Field; fontSize?: FontSize }> = ({ field, 
       }
     };
 
-    // Create a temporary field with the unwrapped value to pass to the renderer
     const tempField = { ...field, defaultValue: value };
 
     if (field.options.togglable) {
       const handleToggle = (toggled: boolean) => {
-        // Ensure we are updating a structured object, creating one if it doesn't exist
         handleValueChange({ ...(isStructuredDefault ? field.defaultValue : { value }), toggled });
       };
+      
+      const hasValue = value !== null && value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0);
+
+      const renderCollapsedValue = () => {
+        if (!hasValue) return null;
+        let displayValue = '';
+        switch(field.type) {
+            case 'number':
+                displayValue = `${value}${field.options.unit || ''}`;
+                break;
+            case 'single-choice':
+                displayValue = field.options.choices?.find(c => c.value === value)?.label || String(value);
+                break;
+            case 'multiple-choice':
+                const labels = (value as string[]).map(v => field.options.choices?.find(c => c.value === v)?.label || v);
+                displayValue = labels.join(', ');
+                break;
+            default:
+                displayValue = String(value);
+        }
+        return <span className="text-muted-foreground ml-2 truncate">: {displayValue}</span>
+      }
 
       return (
         <div className="space-y-1.5">
-          <div className="flex items-start space-x-3">
-             <Checkbox
+          <div className="flex items-center space-x-3">
+             <Switch
               id={`toggle-${field.id}`}
               checked={isToggled}
-              onChange={(e) => handleToggle(e.target.checked)}
-              className="mt-1"
+              onCheckedChange={handleToggle}
             />
-            <div className="flex-1">
-              <label htmlFor={`toggle-${field.id}`} className={cn("font-medium", labelClasses, "cursor-pointer")}>{field.label}</label>
-               {field.description && !isToggled && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+            <div className="flex-1 flex items-baseline min-w-0">
+              <label htmlFor={`toggle-${field.id}`} className={cn("font-medium", labelClasses, "cursor-pointer truncate")}>
+                {field.label}
+              </label>
+              {!isToggled && renderCollapsedValue()}
             </div>
             <RequiredBadge />
           </div>
@@ -108,7 +146,8 @@ const FieldPreview: React.FC<{ field: Field; fontSize?: FontSize }> = ({ field, 
                 className="overflow-hidden pl-7"
               >
                 <div className="pt-2">
-                  <FieldRenderer field={tempField} fontSize={fontSize} onValueChange={onRendererValueChange} />
+                  {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+                  <FieldRenderer field={tempField} fontSize={fontSize} onValueChange={onRendererValueChange} showLabel={false} />
                 </div>
               </motion.div>
             )}
@@ -117,15 +156,19 @@ const FieldPreview: React.FC<{ field: Field; fontSize?: FontSize }> = ({ field, 
       );
     }
     
-    // Default rendering for non-togglable fields
-    return <FieldRenderer field={tempField} fontSize={fontSize} onValueChange={onRendererValueChange} />
+    return <FieldRenderer field={tempField} fontSize={fontSize} onValueChange={onRendererValueChange} showLabel={true} />
   };
 
   return <div className="p-3">{getFieldPreview()}</div>;
 };
 
 // This new component contains the original rendering logic from getFieldPreview
-const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange: (value: any) => void }> = ({ field, fontSize, onValueChange: handleValueChange }) => {
+const FieldRenderer: React.FC<{ 
+  field: Field, 
+  fontSize: FontSize, 
+  onValueChange: (value: any) => void,
+  showLabel: boolean
+}> = ({ field, fontSize, onValueChange: handleValueChange, showLabel }) => {
     const labelClasses = { sm: 'text-xs', base: 'text-sm', lg: 'text-base' }[fontSize];
     const descriptionClasses = { sm: 'text-[11px]', base: 'text-xs', lg: 'text-sm' }[fontSize];
     const RequiredBadge = () => field.required ? (
@@ -139,16 +182,31 @@ const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange:
       return "flex flex-wrap gap-x-6 gap-y-2 pt-1";
     };
 
+    const getButtonColorClasses = (fieldColor: string, isSelected: boolean): string => {
+      const color = fieldColor || 'primary';
+      if (color.startsWith('#')) {
+        return isSelected
+          ? 'bg-[var(--field-color)] text-white hover:opacity-90 border-transparent'
+          : 'border-[var(--field-color)] text-[var(--field-color)] hover:bg-[var(--field-color-light)]';
+      }
+      const styles = BUTTON_COLOR_MAP[color] || BUTTON_COLOR_MAP.primary;
+      return isSelected ? styles.selected : styles.unselected;
+    };
+
   switch (field.type) {
     case 'text':
     case 'date':
       return (
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className={cn("font-medium", labelClasses)}>{field.label}</label>
-            <RequiredBadge />
-          </div>
-          {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+          {showLabel && (
+            <>
+              <div className="flex items-center justify-between">
+                <label className={cn("font-medium", labelClasses)}>{field.label}</label>
+                <RequiredBadge />
+              </div>
+              {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+            </>
+          )}
           
           {field.type === 'text' && <Input type="text" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />}
           {field.type === 'date' && <Input type="date" value={field.defaultValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />}
@@ -164,11 +222,15 @@ const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange:
 
       return (
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className={cn("font-medium", labelClasses)}>{field.label}</label>
-            <RequiredBadge />
-          </div>
-          {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+          {showLabel && (
+            <>
+              <div className="flex items-center justify-between">
+                <label className={cn("font-medium", labelClasses)}>{field.label}</label>
+                <RequiredBadge />
+              </div>
+              {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+            </>
+          )}
           
           <div className="space-y-3 pt-2">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -221,13 +283,17 @@ const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange:
               className="mt-1"
             />
             <div className="grid gap-1.5">
-              <div className="flex items-center justify-between">
-                <label htmlFor={`preview-${field.id}`} className={cn("font-medium leading-none", labelClasses)}>
-                  {field.label}
-                </label>
-                <RequiredBadge />
-              </div>
-              {field.description && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+              {showLabel && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor={`preview-${field.id}`} className={cn("font-medium leading-none", labelClasses)}>
+                      {field.label}
+                    </label>
+                    <RequiredBadge />
+                  </div>
+                  {field.description && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+                </>
+              )}
             </div>
           </div>
         );
@@ -241,13 +307,17 @@ const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange:
             className="mt-1"
           />
           <div className="grid gap-1.5">
-            <div className="flex items-center justify-between">
-              <label htmlFor={`preview-${field.id}`} className={cn("font-medium leading-none", labelClasses)}>
-                {field.label}
-              </label>
-              <RequiredBadge />
-            </div>
-            {field.description && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+            {showLabel && (
+              <>
+                <div className="flex items-center justify-between">
+                  <label htmlFor={`preview-${field.id}`} className={cn("font-medium leading-none", labelClasses)}>
+                    {field.label}
+                  </label>
+                  <RequiredBadge />
+                </div>
+                {field.description && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+              </>
+            )}
           </div>
         </div>
       );
@@ -256,13 +326,17 @@ const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange:
       if (field.options.displayAs === 'radio') {
         return (
           <fieldset>
-            <div className="flex items-center justify-between mb-1">
-              <legend className={cn("font-medium truncate", labelClasses)}>
-                {field.label}
-              </legend>
-              <RequiredBadge />
-            </div>
-            {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+            {showLabel && (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <legend className={cn("font-medium truncate", labelClasses)}>
+                    {field.label}
+                  </legend>
+                  <RequiredBadge />
+                </div>
+                {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+              </>
+            )}
             <RadioGroup
               value={field.defaultValue}
               onValueChange={handleValueChange}
@@ -281,23 +355,24 @@ const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange:
         if (field.options.displayAs === 'button-group') {
           return (
              <fieldset>
-              <div className="flex items-center justify-between mb-1">
-                <legend className={cn("font-medium truncate", labelClasses)}>
-                  {field.label}
-                </legend>
-                <RequiredBadge />
-              </div>
-              {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+              {showLabel && (
+                <>
+                  <div className="flex items-center justify-between mb-1">
+                    <legend className={cn("font-medium truncate", labelClasses)}>
+                      {field.label}
+                    </legend>
+                    <RequiredBadge />
+                  </div>
+                  {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+                </>
+              )}
               <div className={getChoiceGroupLayoutClasses()}>
                 {singleChoices.map(choice => (
                   <Button
                     key={choice.value}
                     variant={field.defaultValue === choice.value ? 'default' : 'outline'}
                     onClick={() => handleValueChange(choice.value)}
-                    className={cn(
-                      field.defaultValue === choice.value && choice.color ? `bg-${choice.color}-600 hover:bg-${choice.color}-700` : '',
-                      field.defaultValue !== choice.value && choice.color ? `border-${choice.color}-500 text-${choice.color}-600 hover:bg-${choice.color}-500/10` : ''
-                    )}
+                    className={getButtonColorClasses(field.styling.color, field.defaultValue === choice.value)}
                   >
                     {choice.label}
                   </Button>
@@ -309,13 +384,17 @@ const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange:
         // Default to Dropdown
         return (
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor={`preview-${field.id}`} className={cn("font-medium", labelClasses)}>
-                {field.label}
-              </label>
-              <RequiredBadge />
-            </div>
-            {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+            {showLabel && (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <label htmlFor={`preview-${field.id}`} className={cn("font-medium", labelClasses)}>
+                    {field.label}
+                  </label>
+                  <RequiredBadge />
+                </div>
+                {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
+              </>
+            )}
             <Select onValueChange={handleValueChange} value={field.defaultValue}>
                 <SelectTrigger id={`preview-${field.id}`}>
                     <SelectValue placeholder="Select an option..." />
@@ -333,18 +412,23 @@ const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange:
       }
     case 'multiple-choice':
       const multiChoices = field.options.choices || [];
-      const selectedValues = new Set(field.defaultValue || []);
+      const selectedValues = new Set(Array.isArray(field.defaultValue) ? field.defaultValue : []);
 
-      if (field.options.displayAs === 'button-group') {
-        return (
-          <fieldset>
-            <div className="flex items-center justify-between mb-1">
-              <legend className={cn("font-medium truncate", labelClasses)}>
-                {field.label}
-              </legend>
-              <RequiredBadge />
-            </div>
-            {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+      return (
+        <fieldset>
+          {showLabel && (
+            <>
+              <div className="flex items-center justify-between mb-1">
+                <legend className={cn("font-medium truncate", labelClasses)}>
+                  {field.label}
+                </legend>
+                <RequiredBadge />
+              </div>
+              {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
+            </>
+          )}
+          
+          {field.options.displayAs === 'button-group' && (
             <div className={getChoiceGroupLayoutClasses()}>
               {multiChoices.map(choice => {
                 const isSelected = selectedValues.has(choice.value);
@@ -361,67 +445,39 @@ const FieldRenderer: React.FC<{ field: Field, fontSize: FontSize, onValueChange:
                       }
                       handleValueChange(Array.from(newSelected));
                     }}
-                    className={cn(
-                      isSelected && choice.color ? `bg-${choice.color}-600 hover:bg-${choice.color}-700` : '',
-                      !isSelected && choice.color ? `border-${choice.color}-500 text-${choice.color}-600 hover:bg-${choice.color}-500/10` : ''
-                    )}
+                    className={getButtonColorClasses(field.styling.color, isSelected)}
                   >
                     {choice.label}
                   </Button>
                 )
               })}
             </div>
-          </fieldset>
-        )
-      }
+          )}
 
-      return (
-        <fieldset>
-          <div className="flex items-center justify-between mb-1">
-            <legend className={cn("font-medium truncate", labelClasses)}>
-              {field.label}
-            </legend>
-            <RequiredBadge />
-          </div>
-          {field.description && <p className={cn("text-muted-foreground mb-2", descriptionClasses)}>{field.description}</p>}
-          <div className={getChoiceGroupLayoutClasses()}>
-            {multiChoices.map((choice) => (
-              <div key={choice.value} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`${field.id}-${choice.value}`}
-                  checked={selectedValues.has(choice.value)}
-                  onChange={(e) => {
-                    const newSelected = new Set(selectedValues);
-                    if (e.target.checked) {
-                      newSelected.add(choice.value);
-                    } else {
-                      newSelected.delete(choice.value);
-                    }
-                    handleValueChange(Array.from(newSelected));
-                  }}
-                />
-                <label htmlFor={`${field.id}-${choice.value}`} className={cn("truncate", labelClasses)}>{choice.label}</label>
-              </div>
-            ))}
-          </div>
+          {field.options.displayAs !== 'button-group' && (
+            <div className={getChoiceGroupLayoutClasses()}>
+              {multiChoices.map((choice) => (
+                <div key={choice.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`${field.id}-${choice.value}`}
+                    checked={selectedValues.has(choice.value)}
+                    onChange={(e) => {
+                      const newSelected = new Set(selectedValues);
+                      if (e.target.checked) {
+                        newSelected.add(choice.value);
+                      } else {
+                        newSelected.delete(choice.value);
+                      }
+                      handleValueChange(Array.from(newSelected));
+                    }}
+                  />
+                  <label htmlFor={`${field.id}-${choice.value}`} className={cn("truncate", labelClasses)}>{choice.label}</label>
+                </div>
+              ))}
+            </div>
+          )}
         </fieldset>
       );
-    case 'autocomplete':
-        return (
-            <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                    <label className={cn("font-medium", labelClasses)}>{field.label}</label>
-                    <RequiredBadge />
-                </div>
-                {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
-                <Autocomplete
-                    options={field.options.choices || []}
-                    value={field.defaultValue || ''}
-                    onChange={handleValueChange}
-                    placeholder="Type or select an option..."
-                />
-            </div>
-        )
     default:
       return (
         <div className="p-2 border-dashed border-destructive bg-destructive/10 text-destructive text-xs rounded-md">
@@ -462,6 +518,17 @@ const FieldComponent: React.FC<{ fieldId: string; sectionId: string; fontSize?: 
 
   const isSelected = selectedFieldId === fieldId;
 
+  const customColor = field.styling.color?.startsWith('#') ? field.styling.color : null;
+  
+  const fieldStyle: CSSPropertiesWithVars = {
+    ...style
+  };
+
+  if (customColor) {
+    fieldStyle['--field-color'] = customColor;
+    fieldStyle['--field-color-light'] = `${customColor}1a`; // For background
+  }
+
   // Define width classes based on field styling
   const widthClass = {
     compact: 'flex-[1_1_200px] max-w-xs',
@@ -472,7 +539,7 @@ const FieldComponent: React.FC<{ fieldId: string; sectionId: string; fontSize?: 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={fieldStyle}
       onClick={(e) => {
         e.stopPropagation();
         selectField(fieldId);
@@ -481,12 +548,17 @@ const FieldComponent: React.FC<{ fieldId: string; sectionId: string; fontSize?: 
         "bg-card border-2 rounded-lg shadow-sm relative group transition-all flex flex-col",
         widthClass, // Apply responsive width class
         isSelected ? 'border-primary shadow-lg' : 'border-transparent hover:border-slate-400 dark:hover:border-slate-600',
-        field.styling.color === 'primary' && 'border-primary/50 bg-primary/5',
-        field.styling.color === 'secondary' && 'border-slate-500/50 bg-slate-500/5',
-        field.styling.color === 'accent' && 'border-amber-500/50 bg-amber-500/5',
-        field.styling.color === 'success' && 'border-emerald-500/50 bg-emerald-500/5',
-        field.styling.color === 'warning' && 'border-orange-500/50 bg-orange-500/5',
-        field.styling.color === 'danger' && 'border-red-500/50 bg-red-500/5'
+        customColor 
+          ? 'border-[var(--field-color)] bg-[var(--field-color-light)]'
+          : {
+            'border-primary/50 bg-primary/5': field.styling.color === 'primary',
+            'border-slate-500/50 bg-slate-500/5': field.styling.color === 'secondary',
+            'border-amber-500/50 bg-amber-500/5': field.styling.color === 'accent',
+            'border-emerald-500/50 bg-emerald-500/5': field.styling.color === 'success',
+            'border-orange-500/50 bg-orange-500/5': field.styling.color === 'warning',
+            'border-red-500/50 bg-red-500/5': field.styling.color === 'danger'
+          },
+        isDragging && 'shadow-2xl scale-105'
       )}
     >
       <div className="flex items-start flex-grow">
@@ -579,8 +651,22 @@ const SectionComponent: React.FC<{ sectionId: string }> = ({ sectionId }) => {
   const isSelected = selectedFieldId === sectionId;
   const isCollapsed = section.collapsed; // Do not automatically collapse when dragging
 
+  const customColor = section.styling.color?.startsWith('#') ? section.styling.color : null;
+  
+  const sectionStyle: CSSPropertiesWithVars = {
+    ...style
+  };
+  
+  if (customColor) {
+    sectionStyle['--section-color'] = customColor;
+    sectionStyle['--section-color-light'] = `${customColor}1a`; // For background
+  }
+
   // Apply section colors properly
   const getSectionColorClasses = (color: string) => {
+    if (color.startsWith('#')) {
+      return 'border-[var(--section-color)] bg-[var(--section-color-light)]';
+    }
     switch (color) {
       case 'primary':
         return 'border-primary/50 bg-primary/5';
@@ -607,7 +693,7 @@ const SectionComponent: React.FC<{ sectionId: string }> = ({ sectionId }) => {
   return (
     <div
       ref={setCombinedRef}
-      style={style}
+      style={sectionStyle}
       onClick={(e) => {
         e.stopPropagation();
         selectField(sectionId);
