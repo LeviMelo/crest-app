@@ -7,18 +7,70 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 import { useFormBuilderStoreV2, Field } from '@/stores/formBuilderStore.v2';
 import { PiTrash, PiPlus } from 'react-icons/pi';
+import { cn } from '@/lib/utils';
+
+// Color palette configuration
+const COLOR_PALETTE = [
+  { name: 'primary', label: 'Primary', className: 'bg-primary hover:bg-primary/80', borderClass: 'border-primary' },
+  { name: 'secondary', label: 'Secondary', className: 'bg-slate-500 hover:bg-slate-600', borderClass: 'border-slate-500' },
+  { name: 'accent', label: 'Accent', className: 'bg-amber-500 hover:bg-amber-600', borderClass: 'border-amber-500' },
+  { name: 'success', label: 'Success', className: 'bg-emerald-500 hover:bg-emerald-600', borderClass: 'border-emerald-500' },
+  { name: 'warning', label: 'Warning', className: 'bg-orange-500 hover:bg-orange-600', borderClass: 'border-orange-500' },
+  { name: 'danger', label: 'Danger', className: 'bg-red-500 hover:bg-red-600', borderClass: 'border-red-500' },
+];
+
+const ColorPalette: React.FC<{
+  selectedColor: string;
+  onColorChange: (color: string) => void;
+}> = ({ selectedColor, onColorChange }) => {
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      {COLOR_PALETTE.map((color) => (
+        <button
+          key={color.name}
+          type="button"
+          onClick={() => onColorChange(color.name)}
+          className={cn(
+            "w-8 h-8 sm:w-10 sm:h-10 rounded-lg border-2 transition-all",
+            color.className,
+            selectedColor === color.name 
+              ? `ring-2 ring-offset-2 ring-primary ${color.borderClass}` 
+              : 'border-transparent hover:border-gray-300'
+          )}
+          title={color.label}
+          aria-label={`Select ${color.label} color`}
+        />
+      ))}
+    </div>
+  );
+};
 
 const ChoiceEditor: React.FC<{ 
   choices: { value: string; label: string }[], 
   onChange: (choices: { value: string; label: string }[]) => void 
 }> = ({ choices, onChange }) => {
-  const addChoice = () => {
-    onChange([...choices, { value: '', label: '' }]);
+
+  const generateValue = (label: string) => {
+    return label
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^\w-]/g, '') || `option_${Math.random().toString(36).substr(2, 5)}`;
   };
 
-  const updateChoice = (index: number, field: 'value' | 'label', value: string) => {
-    const newChoices = [...choices];
-    newChoices[index][field] = value;
+  const addChoice = () => {
+    const newLabel = `Option ${choices.length + 1}`;
+    const newValue = generateValue(newLabel);
+    onChange([...choices, { value: newValue, label: newLabel }]);
+  };
+
+  const updateChoiceLabel = (index: number, newLabel: string) => {
+    const newChoices = choices.map((choice, i) => {
+      if (i === index) {
+        // Also update the value when the label changes, to keep them in sync
+        return { ...choice, label: newLabel, value: generateValue(newLabel) };
+      }
+      return choice;
+    });
     onChange(newChoices);
   };
 
@@ -29,36 +81,35 @@ const ChoiceEditor: React.FC<{
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium">Choices</label>
+        <label className="text-sm font-medium">
+          <span className="hidden sm:inline">Choices</span>
+          <span className="sm:hidden">Options</span>
+        </label>
         <Button size="sm" variant="outline" onClick={addChoice}>
-          <PiPlus className="w-3 h-3 mr-1" />
-          Add Choice
+          <PiPlus className="w-3 h-3 sm:mr-1" />
+          <span className="hidden sm:inline">Add Choice</span>
         </Button>
       </div>
       
       <div className="space-y-2">
         {choices.map((choice, index) => (
-          <div key={index} className="flex items-center gap-2 p-2 border rounded">
-            <input
-              type="text"
-              placeholder="Value"
-              value={choice.value}
-              onChange={(e) => updateChoice(index, 'value', e.target.value)}
-              className="flex-1 p-1 text-xs border rounded"
-            />
-            <input
-              type="text"
-              placeholder="Label"
+          <div key={index} className="flex items-center gap-2 p-1 border rounded">
+            <InputField
+              id={`choice-label-${index}`}
+              label=""
+              placeholder="Choice Label"
               value={choice.label}
-              onChange={(e) => updateChoice(index, 'label', e.target.value)}
-              className="flex-1 p-1 text-xs border rounded"
+              onChange={(e) => updateChoiceLabel(index, e.target.value)}
+              className="flex-1 text-xs min-w-0 h-8"
+              containerClassName="w-full gap-0"
             />
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
               onClick={() => removeChoice(index)}
+              className="flex-shrink-0 h-8 w-8"
             >
-              <PiTrash className="w-3 h-3" />
+              <PiTrash className="w-4 h-4" />
             </Button>
           </div>
         ))}
@@ -66,7 +117,8 @@ const ChoiceEditor: React.FC<{
       
       {choices.length === 0 && (
         <p className="text-xs text-muted-foreground text-center py-4">
-          No choices added yet
+          <span className="hidden sm:inline">No choices added yet</span>
+          <span className="sm:hidden">No options</span>
         </p>
       )}
     </div>
@@ -89,46 +141,77 @@ const InspectorV2: React.FC = () => {
     }
   }, [selectedField]);
 
-  // Save changes to store
-  const saveChanges = () => {
-    if (localField && selectedFieldId) {
-      updateField(selectedFieldId, localField);
-    }
-  };
-
-  // Auto-save on changes (debounced)
+  // Auto-save on changes (debounced) - reduced delay for better UX
   useEffect(() => {
-    if (localField && selectedField) {
-      const timeoutId = setTimeout(saveChanges, 500);
+    if (localField && selectedField && selectedFieldId) {
+      const timeoutId = setTimeout(() => {
+        updateField(selectedFieldId, localField);
+      }, 300); // Slightly increased for stability
       return () => clearTimeout(timeoutId);
     }
-  }, [localField]);
+  }, [localField, selectedField, selectedFieldId, updateField]);
 
   const updateLocalField = (updates: Partial<Field>) => {
     if (localField) {
-      setLocalField({ ...localField, ...updates });
+      setLocalField(prev => prev ? { ...prev, ...updates } : null);
     }
   };
 
   const updateLocalOptions = (optionUpdates: any) => {
     if (localField) {
-      setLocalField({
-        ...localField,
-        options: { ...localField.options, ...optionUpdates }
+      setLocalField(prev => prev ? {
+        ...prev,
+        options: { ...prev.options, ...optionUpdates }
+      } : null);
+    }
+  };
+
+  const updateLocalStyling = (stylingUpdates: any) => {
+    if (localField) {
+      setLocalField(prev => prev ? {
+        ...prev,
+        styling: { ...prev.styling, ...stylingUpdates }
+      } : null);
+    }
+  };
+
+  // Immediate color update for better UX
+  const handleColorChange = (color: string) => {
+    if (selectedField && selectedFieldId) {
+      // Update immediately in store
+      updateField(selectedFieldId, {
+        ...selectedField,
+        styling: { ...selectedField.styling, color }
+      });
+      // Also update local state
+      updateLocalStyling({ color });
+    } else if (selectedSection && selectedFieldId) {
+      // Update section color immediately
+      updateSection(selectedFieldId, {
+        styling: { ...selectedSection.styling, color }
       });
     }
+  };
+
+  // Handle choice updates
+  const handleChoicesChange = (choices: { value: string; label: string }[]) => {
+    updateLocalOptions({ choices });
   };
 
   if (!selectedFieldId) {
     return (
       <Card className="h-full flex flex-col">
-        <CardHeader>
-          <CardTitle>Inspector</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl">
+            <span className="hidden sm:inline">Inspector</span>
+            <span className="sm:hidden">Edit</span>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="flex-grow flex items-center justify-center">
+        <CardContent className="flex-grow flex items-center justify-center p-4">
           <div className="text-center">
-            <p className="text-muted-foreground">
-              Select a field or section to edit its properties
+            <p className="text-muted-foreground text-sm">
+              <span className="hidden sm:inline">Select a field or section to edit its properties</span>
+              <span className="sm:hidden">Select item to edit</span>
             </p>
           </div>
         </CardContent>
@@ -140,10 +223,13 @@ const InspectorV2: React.FC = () => {
   if (selectedSection && !selectedField) {
     return (
       <Card className="h-full flex flex-col">
-        <CardHeader>
-          <CardTitle>Section Properties</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl">
+            <span className="hidden sm:inline">Section Properties</span>
+            <span className="sm:hidden">Section</span>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-4 sm:p-6">
           <InputField
             id="section-title"
             label="Section Title"
@@ -168,14 +254,32 @@ const InspectorV2: React.FC = () => {
             </Select>
           </div>
 
+          {/* Section styling */}
+          <div className="pt-4 border-t space-y-4">
+            <h4 className="font-medium">
+              <span className="hidden sm:inline">Styling</span>
+              <span className="sm:hidden">Style</span>
+            </h4>
+            
+            <div>
+              <label className="text-sm font-medium mb-3 block">Color</label>
+              <ColorPalette
+                selectedColor={selectedSection.styling.color}
+                onColorChange={handleColorChange}
+              />
+            </div>
+          </div>
+
           <div className="pt-4 border-t">
             <Button
               variant="destructive"
               onClick={() => removeField(selectedFieldId)}
               className="w-full"
+              size="sm"
             >
               <PiTrash className="w-4 h-4 mr-2" />
-              Delete Section
+              <span className="hidden sm:inline">Delete Section</span>
+              <span className="sm:hidden">Delete</span>
             </Button>
           </div>
         </CardContent>
@@ -188,14 +292,18 @@ const InspectorV2: React.FC = () => {
 
   return (
     <Card className="h-full flex flex-col">
-      <CardHeader>
-        <CardTitle>Field Properties</CardTitle>
+      <CardHeader className="p-4 sm:p-6">
+        <CardTitle className="text-lg sm:text-xl">
+          <span className="hidden sm:inline">Field Properties</span>
+          <span className="sm:hidden">Field</span>
+        </CardTitle>
         <p className="text-sm text-muted-foreground capitalize">
-          {localField.type.replace('-', ' ')} Field
+          <span className="hidden sm:inline">{localField.type.replace('-', ' ')} Field</span>
+          <span className="sm:hidden">{localField.type.replace('-', ' ')}</span>
         </p>
       </CardHeader>
       
-      <CardContent className="flex-grow overflow-auto space-y-4">
+      <CardContent className="flex-grow overflow-auto space-y-4 p-4 sm:p-6">
         {/* Basic Properties */}
         <div className="space-y-4">
           <InputField
@@ -205,13 +313,19 @@ const InspectorV2: React.FC = () => {
             onChange={(e) => updateLocalField({ label: e.target.value })}
           />
           
-          <TextareaField
-            id="field-description"
-            label="Description"
-            value={localField.description || ''}
-            onChange={(e) => updateLocalField({ description: e.target.value })}
-            rows={2}
-          />
+          <div>
+            <label htmlFor="field-description" className="text-sm font-medium block mb-1.5">
+              <span className="hidden sm:inline">Description</span>
+              <span className="sm:hidden">Desc</span>
+            </label>
+            <TextareaField
+              id="field-description"
+              label=""
+              value={localField.description || ''}
+              onChange={(e) => updateLocalField({ description: e.target.value })}
+              rows={2}
+            />
+          </div>
           
           <div className="flex items-center space-x-2">
             <Checkbox
@@ -227,7 +341,10 @@ const InspectorV2: React.FC = () => {
 
         {/* Type-specific options */}
         <div className="pt-4 border-t space-y-4">
-          <h4 className="font-medium">Field Options</h4>
+          <h4 className="font-medium">
+            <span className="hidden sm:inline">Field Options</span>
+            <span className="sm:hidden">Options</span>
+          </h4>
           
           {localField.type === 'text' && (
             <InputField
@@ -249,7 +366,10 @@ const InspectorV2: React.FC = () => {
               />
               
               <div>
-                <label className="text-sm font-medium">Input Types</label>
+                <label className="text-sm font-medium">
+                  <span className="hidden sm:inline">Input Types</span>
+                  <span className="sm:hidden">Types</span>
+                </label>
                 <div className="mt-2 space-y-2">
                   {['input', 'slider', 'stepper'].map((inputType) => (
                     <div key={inputType} className="flex items-center space-x-2">
@@ -276,11 +396,14 @@ const InspectorV2: React.FC = () => {
 
           {localField.type === 'boolean' && (
             <div>
-              <label className="text-sm font-medium">Display As</label>
-                             <Select
-                 value={localField.options.displayAs || 'checkbox'}
-                 onValueChange={(value: string) => updateLocalOptions({ displayAs: value })}
-               >
+              <label className="text-sm font-medium">
+                <span className="hidden sm:inline">Display As</span>
+                <span className="sm:hidden">Display</span>
+              </label>
+              <Select
+                value={localField.options.displayAs || 'checkbox'}
+                onValueChange={(value: string) => updateLocalOptions({ displayAs: value })}
+              >
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
@@ -296,15 +419,18 @@ const InspectorV2: React.FC = () => {
             <div className="space-y-4">
               <ChoiceEditor
                 choices={localField.options.choices || []}
-                onChange={(choices) => updateLocalOptions({ choices })}
+                onChange={handleChoicesChange}
               />
               
               <div>
-                <label className="text-sm font-medium">Display As</label>
-                                 <Select
-                   value={localField.options.displayAs || (localField.type === 'single-choice' ? 'radio' : 'checkboxGroup')}
-                   onValueChange={(value: string) => updateLocalOptions({ displayAs: value })}
-                 >
+                <label className="text-sm font-medium">
+                  <span className="hidden sm:inline">Display As</span>
+                  <span className="sm:hidden">Display</span>
+                </label>
+                <Select
+                  value={localField.options.displayAs || (localField.type === 'single-choice' ? 'radio' : 'checkboxGroup')}
+                  onValueChange={(value: string) => updateLocalOptions({ displayAs: value })}
+                >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -326,28 +452,17 @@ const InspectorV2: React.FC = () => {
 
         {/* Styling */}
         <div className="pt-4 border-t space-y-4">
-          <h4 className="font-medium">Styling</h4>
+          <h4 className="font-medium">
+            <span className="hidden sm:inline">Styling</span>
+            <span className="sm:hidden">Style</span>
+          </h4>
           
           <div>
-            <label className="text-sm font-medium">Color</label>
-                         <Select
-               value={localField.styling.color}
-               onValueChange={(value: string) => updateLocalField({ 
-                 styling: { ...localField.styling, color: value } 
-               })}
-             >
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="primary">Primary</SelectItem>
-                <SelectItem value="secondary">Secondary</SelectItem>
-                <SelectItem value="accent">Accent</SelectItem>
-                <SelectItem value="success">Success</SelectItem>
-                <SelectItem value="warning">Warning</SelectItem>
-                <SelectItem value="danger">Danger</SelectItem>
-              </SelectContent>
-            </Select>
+            <label className="text-sm font-medium mb-3 block">Color</label>
+            <ColorPalette
+              selectedColor={localField.styling.color}
+              onColorChange={handleColorChange}
+            />
           </div>
         </div>
 
@@ -357,9 +472,11 @@ const InspectorV2: React.FC = () => {
             variant="destructive"
             onClick={() => removeField(selectedFieldId)}
             className="w-full"
+            size="sm"
           >
             <PiTrash className="w-4 h-4 mr-2" />
-            Delete Field
+            <span className="hidden sm:inline">Delete Field</span>
+            <span className="sm:hidden">Delete</span>
           </Button>
         </div>
       </CardContent>

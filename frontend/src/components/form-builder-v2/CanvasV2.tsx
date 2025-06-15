@@ -1,219 +1,535 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { useFormBuilderStoreV2 } from '@/stores/formBuilderStore.v2';
-import { PiTrash, PiCopy, PiPlus } from 'react-icons/pi';
+import { useFormBuilderStoreV2, Field } from '@/stores/formBuilderStore.v2';
+import { PiTrash, PiCopy, PiPlus, PiDotsSixVerticalBold, PiCaretDown, PiCaretRight } from 'react-icons/pi';
 import { cn } from '@/lib/utils';
+import { InputField } from '@/components/ui/InputField';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/RadioGroup';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select';
+import { Slider } from '@/components/ui/Slider';
+import Stepper from '@/components/ui/Stepper';
+import { DndContext, closestCenter, DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-const FieldComponent: React.FC<{ fieldId: string }> = ({ fieldId }) => {
-  const { getField, selectField, selectedFieldId, removeField, duplicateField } = useFormBuilderStoreV2();
-  const field = getField(fieldId);
+// Field preview component that shows how the field will look
+const FieldPreview: React.FC<{ field: Field }> = ({ field }) => {
+  const { updateFieldDefaultValue } = useFormBuilderStoreV2();
 
-  if (!field) return null;
-
-  const isSelected = selectedFieldId === fieldId;
-
-  const getFieldIcon = () => {
-    switch (field.type) {
-      case 'text': return '📝';
-      case 'number': return '🔢';
-      case 'boolean': return '☑️';
-      case 'single-choice': return '🔘';
-      case 'multiple-choice': return '☑️';
-      case 'date': return '📅';
-      default: return '❓';
-    }
+  const handleValueChange = (value: any) => {
+    updateFieldDefaultValue(field.id, value);
   };
 
   const getFieldPreview = () => {
     switch (field.type) {
       case 'text':
         return (
-          <input 
-            type="text" 
-            placeholder={field.options.placeholder || 'Enter text...'} 
-            className="w-full p-2 border rounded text-sm"
-            disabled
+          <InputField
+            id={`preview-${field.id}`}
+            label={field.label}
+            subtitle={field.description}
+            placeholder={field.options.placeholder || 'Enter text...'}
+            value={field.defaultValue || ''}
+            onChange={(e) => handleValueChange(e.target.value)}
           />
         );
       case 'number':
+        const enabledInputs = field.options.enabledInputs || [];
         return (
-          <div className="flex items-center gap-2">
-            <input 
-              type="number" 
-              placeholder="0" 
-              className="flex-1 p-2 border rounded text-sm"
-              disabled
+          <div className="space-y-3">
+            <InputField
+              id={`preview-${field.id}`}
+              label={field.label}
+              subtitle={field.description}
+              type="number"
+              placeholder="0"
+              addon={field.options.unit}
+              value={field.defaultValue || 0}
+              onChange={(e) => handleValueChange(e.target.valueAsNumber)}
             />
-            {field.options.unit && (
-              <span className="text-sm text-muted-foreground">{field.options.unit}</span>
-            )}
+            <div className="flex items-center gap-4">
+              {enabledInputs.includes('slider') && (
+                <Slider
+                  value={[field.defaultValue || 0]}
+                  onValueChange={(vals) => handleValueChange(vals[0])}
+                  className="w-full"
+                />
+              )}
+              {enabledInputs.includes('stepper') && (
+                <Stepper
+                  value={field.defaultValue || 0}
+                  onValueChange={handleValueChange}
+                />
+              )}
+            </div>
           </div>
         );
       case 'boolean':
         return (
-          <label className="flex items-center gap-2">
-            <input type="checkbox" disabled />
-            <span className="text-sm">{field.label}</span>
-          </label>
+          <div className="flex items-start space-x-3 p-2">
+            <Checkbox
+              id={`preview-${field.id}`}
+              checked={field.defaultValue || false}
+              onChange={(e) => handleValueChange(e.target.checked)}
+              className="mt-1"
+            />
+            <div className="grid gap-1.5">
+                <label htmlFor={`preview-${field.id}`} className="font-medium leading-none">
+                    {field.label}
+                </label>
+                {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
+            </div>
+          </div>
         );
       case 'single-choice':
-        return (
-          <div className="space-y-2">
-            {field.options.choices?.slice(0, 2).map((choice, index) => (
-              <label key={index} className="flex items-center gap-2">
-                <input type="radio" name={fieldId} disabled />
-                <span className="text-sm">{choice.label}</span>
-              </label>
-            ))}
-          </div>
-        );
+        const singleChoices = field.options.choices || [];
+        if (field.options.displayAs === 'radio') {
+          return (
+            <fieldset>
+              <legend className="text-sm font-medium truncate mb-1">{field.label}</legend>
+              {field.description && <p className="text-xs text-muted-foreground mb-2">{field.description}</p>}
+              <RadioGroup
+                value={field.defaultValue}
+                onValueChange={handleValueChange}
+                className="space-y-2"
+              >
+                {singleChoices.map((choice) => (
+                  <div key={choice.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={choice.value} id={`${field.id}-${choice.value}`} />
+                    <label htmlFor={`${field.id}-${choice.value}`} className="truncate text-sm">{choice.label}</label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </fieldset>
+          );
+        } else { // Dropdown
+          return (
+            <div className="space-y-1.5">
+              <label htmlFor={`preview-${field.id}`} className="text-sm font-medium">{field.label}</label>
+              {field.description && <p className="text-xs text-muted-foreground -mt-1">{field.description}</p>}
+              <Select value={field.defaultValue} onValueChange={handleValueChange}>
+                <SelectTrigger id={`preview-${field.id}`}>
+                  <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {singleChoices.map((choice) => (
+                    <SelectItem key={choice.value} value={choice.value}>
+                      {choice.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        }
       case 'multiple-choice':
+        const multiChoices = field.options.choices || [];
+        const selectedValues = new Set(field.defaultValue || []);
+
         return (
-          <div className="space-y-2">
-            {field.options.choices?.slice(0, 2).map((choice, index) => (
-              <label key={index} className="flex items-center gap-2">
-                <input type="checkbox" disabled />
-                <span className="text-sm">{choice.label}</span>
-              </label>
-            ))}
-          </div>
+          <fieldset>
+            <legend className="text-sm font-medium truncate mb-1">{field.label}</legend>
+            {field.description && <p className="text-xs text-muted-foreground mb-2">{field.description}</p>}
+            <div className="space-y-2">
+              {multiChoices.map((choice) => (
+                <div key={choice.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`${field.id}-${choice.value}`}
+                    checked={selectedValues.has(choice.value)}
+                    onChange={(e) => {
+                      const newSelected = new Set(selectedValues);
+                      if (e.target.checked) {
+                        newSelected.add(choice.value);
+                      } else {
+                        newSelected.delete(choice.value);
+                      }
+                      handleValueChange(Array.from(newSelected));
+                    }}
+                  />
+                  <label htmlFor={`${field.id}-${choice.value}`} className="truncate text-sm">{choice.label}</label>
+                </div>
+              ))}
+            </div>
+          </fieldset>
         );
       case 'date':
         return (
-          <input 
-            type="date" 
-            className="w-full p-2 border rounded text-sm"
-            disabled
+          <InputField
+            id={`preview-${field.id}`}
+            label={field.label}
+            subtitle={field.description}
+            type="date"
+            value={field.defaultValue || ''}
+            onChange={(e) => handleValueChange(e.target.value)}
           />
         );
       default:
-        return <div className="p-2 text-sm text-muted-foreground">Unknown field type</div>;
+        return (
+          <div className="p-2 text-sm text-muted-foreground">
+            Unknown field type: {field.type}
+          </div>
+        );
+    }
+  };
+
+  return <div className="p-3">{getFieldPreview()}</div>;
+};
+
+// Individual field component with selection and editing
+const FieldComponent: React.FC<{ fieldId: string; sectionId: string }> = ({ fieldId, sectionId }) => {
+  const { getField, selectField, selectedFieldId, removeField, duplicateField } = useFormBuilderStoreV2();
+  const field = getField(fieldId);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ 
+    id: fieldId, 
+    data: { 
+      type: 'field',
+      fieldId,
+      sectionId 
+    } 
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  if (!field) return null;
+
+  const isSelected = selectedFieldId === fieldId;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={(e) => {
+        e.stopPropagation();
+        selectField(fieldId);
+      }}
+      className={cn(
+        "bg-card border-2 rounded-lg shadow-sm relative group transition-all",
+        isSelected ? 'border-primary shadow-lg' : 'border-transparent hover:border-slate-400 dark:hover:border-slate-600',
+        field.styling.color === 'primary' && 'border-primary/50 bg-primary/5',
+        field.styling.color === 'secondary' && 'border-slate-500/50 bg-slate-500/5',
+        field.styling.color === 'accent' && 'border-amber-500/50 bg-amber-500/5',
+        field.styling.color === 'success' && 'border-emerald-500/50 bg-emerald-500/5',
+        field.styling.color === 'warning' && 'border-orange-500/50 bg-orange-500/5',
+        field.styling.color === 'danger' && 'border-red-500/50 bg-red-500/5'
+      )}
+    >
+      <div className="flex items-start">
+        {/* Drag handle */}
+        <div 
+          {...attributes} 
+          {...listeners}
+          className={cn(
+            "p-2 sm:p-3 cursor-grab touch-none self-stretch flex items-center rounded-l-md transition-colors",
+            isSelected ? 'bg-primary/20' : 'group-hover:bg-accent'
+          )}
+        >
+          <PiDotsSixVerticalBold className="w-4 h-4" />
+        </div>
+        
+        {/* Field content */}
+        <div className="flex-grow min-w-0">
+          <FieldPreview field={field} />
+        </div>
+        
+        {/* Action buttons */}
+        <div className="p-1 self-start flex gap-1">
+          {isSelected && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                duplicateField(fieldId);
+              }}
+              className="hidden sm:flex"
+            >
+              <PiCopy className="w-4 h-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeField(fieldId);
+            }}
+          >
+            <PiTrash className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Section component that can contain fields and be dragged
+const SectionComponent: React.FC<{ sectionId: string }> = ({ sectionId }) => {
+  const { getSection, addField, selectField, selectedFieldId, removeField, toggleSectionCollapse } = useFormBuilderStoreV2();
+  const section = getSection(sectionId);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef: sortableRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ 
+    id: sectionId, 
+    data: { 
+      type: 'section',
+      sectionId 
+    } 
+  });
+
+  const { setNodeRef: droppableRef, isOver } = useDroppable({ 
+    id: sectionId,
+    data: {
+      type: 'section',
+      sectionId
+    }
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  if (!section) return null;
+
+  const isSelected = selectedFieldId === sectionId;
+  const isCollapsed = section.collapsed; // Do not automatically collapse when dragging
+
+  // Apply section colors properly
+  const getSectionColorClasses = (color: string) => {
+    switch (color) {
+      case 'primary':
+        return 'border-primary/50 bg-primary/5';
+      case 'secondary':
+        return 'border-slate-500/50 bg-slate-500/5';
+      case 'accent':
+        return 'border-amber-500/50 bg-amber-500/5';
+      case 'success':
+        return 'border-emerald-500/50 bg-emerald-500/5';
+      case 'warning':
+        return 'border-orange-500/50 bg-orange-500/5';
+      case 'danger':
+        return 'border-red-500/50 bg-red-500/5';
+      default:
+        return 'border-slate-500/50 bg-slate-500/5';
     }
   };
 
   return (
     <div
-      onClick={() => selectField(fieldId)}
+      ref={sortableRef}
+      style={style}
+      onClick={(e) => {
+        e.stopPropagation();
+        selectField(sectionId);
+      }}
       className={cn(
-        "border-2 rounded-lg p-4 cursor-pointer transition-all",
-        isSelected 
-          ? "border-primary bg-primary/5" 
-          : "border-border hover:border-primary/50"
+        "bg-card border-2 rounded-lg shadow-sm relative transition-all cursor-pointer",
+        isSelected ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-border hover:border-primary/50',
+        getSectionColorClasses(section.styling.color),
+        isDragging && 'shadow-2xl scale-105'
       )}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{getFieldIcon()}</span>
-          <div>
-            <h4 className="font-medium text-sm">{field.label}</h4>
-            {field.description && (
-              <p className="text-xs text-muted-foreground">{field.description}</p>
+      {/* Section header */}
+      <div className="flex items-center justify-between p-3 sm:p-4 border-b">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div 
+            {...attributes} 
+            {...listeners}
+            className={cn(
+              "p-1 sm:p-2 cursor-grab active:cursor-grabbing touch-none flex items-center rounded transition-colors flex-shrink-0",
+              isSelected ? 'bg-primary/20' : 'hover:bg-accent'
             )}
+          >
+            <PiDotsSixVerticalBold className="w-4 h-4" />
           </div>
+          
+          {/* Collapse/Expand button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSectionCollapse(sectionId);
+            }}
+            className="p-1 h-auto"
+          >
+            {isCollapsed ? (
+              <PiCaretRight className="w-4 h-4" />
+            ) : (
+              <PiCaretDown className="w-4 h-4" />
+            )}
+          </Button>
+          
+          <h3 className="font-semibold text-base sm:text-lg truncate">{section.title}</h3>
+          <span className="text-xs text-muted-foreground">
+            ({section.fields.length} field{section.fields.length !== 1 ? 's' : ''})
+          </span>
         </div>
         
-        {isSelected && (
-          <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              addField('text', sectionId);
+            }}
+            className="text-xs sm:text-sm"
+          >
+            <PiPlus className="w-3 h-3 sm:mr-1" />
+            <span className="hidden sm:inline">Add Field</span>
+          </Button>
+          {isSelected && (
             <Button
-              size="sm"
               variant="ghost"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                duplicateField(fieldId);
+                removeField(sectionId);
               }}
             >
-              <PiCopy className="w-3 h-3" />
+              <PiTrash className="w-4 h-4" />
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeField(fieldId);
-              }}
-            >
-              <PiTrash className="w-3 h-3" />
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       
-      <div className="pointer-events-none opacity-70">
-        {getFieldPreview()}
-      </div>
-    </div>
-  );
-};
-
-const SectionComponent: React.FC<{ sectionId: string }> = ({ sectionId }) => {
-  const { getSection, addField, selectField, selectedFieldId } = useFormBuilderStoreV2();
-  const section = getSection(sectionId);
-
-  if (!section) return null;
-
-  const isSelected = selectedFieldId === sectionId;
-
-  return (
-    <div
-      onClick={() => selectField(sectionId)}
-      className={cn(
-        "border-2 border-dashed rounded-lg p-4 transition-all",
-        isSelected 
-          ? "border-primary bg-primary/5" 
-          : "border-border hover:border-primary/50"
-      )}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-lg">{section.title}</h3>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={(e) => {
-            e.stopPropagation();
-            addField('text', sectionId);
-          }}
+      {/* Section content - only show when not collapsed */}
+      {!isCollapsed && (
+        <div 
+          ref={droppableRef}
+          className={cn(
+            "p-3 sm:p-4 transition-colors",
+            isOver && "bg-primary/10"
+          )}
         >
-          <PiPlus className="w-3 h-3 mr-1" />
-          Add Field
-        </Button>
-      </div>
+          <SortableContext items={section.fields} strategy={verticalListSortingStrategy}>
+            <div className={cn(
+              "grid gap-3 sm:gap-4",
+              section.columns === 1 && "grid-cols-1",
+              section.columns === 2 && "grid-cols-1 md:grid-cols-2",
+              section.columns === 3 && "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+            )}>
+              {section.fields.length > 0 ? (
+                section.fields.map(fieldId => (
+                  <FieldComponent key={fieldId} fieldId={fieldId} sectionId={sectionId} />
+                ))
+              ) : (
+                <div className="col-span-full text-center py-6 sm:py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <p className="text-sm">Drop fields here or click "Add Field"</p>
+                </div>
+              )}
+            </div>
+          </SortableContext>
+        </div>
+      )}
       
-      <div className={cn(
-        "grid gap-4",
-        section.columns === 1 && "grid-cols-1",
-        section.columns === 2 && "grid-cols-1 md:grid-cols-2",
-        section.columns === 3 && "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-      )}>
-        {section.fields.length > 0 ? (
-          section.fields.map(fieldId => (
-            <FieldComponent key={fieldId} fieldId={fieldId} />
-          ))
-        ) : (
-          <div className="col-span-full text-center py-8 text-muted-foreground">
-            <p>No fields in this section</p>
-            <p className="text-xs mt-1">Click "Add Field" to get started</p>
-          </div>
-        )}
-      </div>
+      {/* Collapsed state indicator */}
+      {isCollapsed && !isDragging && (
+        <div className="p-3 sm:p-4 text-center text-muted-foreground">
+          <p className="text-sm">Section collapsed - click to expand</p>
+        </div>
+      )}
     </div>
   );
 };
 
 const CanvasV2: React.FC = () => {
-  const { currentForm, addSection } = useFormBuilderStoreV2();
+  const { currentForm, addSection, selectField, moveField, moveSections } = useFormBuilderStoreV2();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before activating
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || !currentForm || active.id === over.id) {
+        return;
+    }
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+    
+    const activeData = active.data.current;
+    const overData = over.data.current;
+
+    // Reordering sections
+    if (activeData?.type === 'section') {
+        const oldIndex = currentForm.layout.sections.findIndex(s => s.id === activeId);
+        
+        // Find the target section, even if we are hovering over a field within it
+        const overSection = currentForm.layout.sections.find(s => s.id === overId || s.fields.includes(overId));
+        if (!overSection) return;
+        const newIndex = currentForm.layout.sections.findIndex(s => s.id === overSection.id);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+            moveSections(oldIndex, newIndex);
+        }
+        return;
+    }
+    
+    // Reordering fields
+    if (activeData?.type === 'field') {
+        const activeSectionId = activeData.sectionId;
+        let overSectionId = overData?.sectionId;
+        let overIndex = -1;
+
+        if (overData?.type === 'section') {
+            // Dropping a field onto a section container
+            overSectionId = overData.sectionId;
+            const overSection = currentForm.layout.sections.find(s => s.id === overSectionId);
+            overIndex = overSection?.fields.length ?? 0;
+        } else if (overData?.type === 'field') {
+            // Dropping a field onto another field
+            overSectionId = overData.sectionId;
+            const overSection = currentForm.layout.sections.find(s => s.id === overSectionId);
+            overIndex = overSection?.fields.indexOf(overId) ?? 0;
+        }
+
+        if (activeSectionId && overSectionId && overIndex > -1 && (activeSectionId !== overSectionId || overIndex !== active.data.current?.index)) {
+             moveField(activeId, overSectionId, overIndex);
+        }
+    }
+  };
 
   if (!currentForm) {
     return (
       <Card className="h-full flex flex-col">
         <CardHeader>
-          <CardTitle>Form Canvas</CardTitle>
-          <CardDescription>No form loaded</CardDescription>
+          <CardTitle className="text-lg sm:text-xl">Form Canvas</CardTitle>
+          <CardDescription className="hidden sm:block">No form loaded</CardDescription>
         </CardHeader>
         <CardContent className="flex-grow flex items-center justify-center">
           <div className="text-center">
-            <p className="text-muted-foreground mb-4">
-              Create a new form or load an existing one to start building
+            <p className="text-muted-foreground mb-4 text-sm sm:text-base">
+              <span className="hidden sm:inline">Create a new form or load an existing one to start building</span>
+              <span className="sm:hidden">Create or load a form</span>
             </p>
           </div>
         </CardContent>
@@ -222,40 +538,53 @@ const CanvasV2: React.FC = () => {
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>{currentForm.name}</CardTitle>
-            <CardDescription>{currentForm.description}</CardDescription>
-          </div>
-          <Button onClick={addSection} variant="outline">
-            <PiPlus className="w-4 h-4 mr-2" />
-            Add Section
-          </Button>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="flex-grow overflow-auto">
-        <div className="space-y-6">
-          {currentForm.layout.sections.length > 0 ? (
-            currentForm.layout.sections.map(section => (
-              <SectionComponent key={section.id} sectionId={section.id} />
-            ))
-          ) : (
-            <div className="text-center py-12 border-2 border-dashed rounded-lg">
-              <p className="text-muted-foreground mb-4">
-                Your form is empty
-              </p>
-              <Button onClick={addSection}>
-                <PiPlus className="w-4 h-4 mr-2" />
-                Add Your First Section
-              </Button>
+    <DndContext 
+      sensors={sensors} 
+      collisionDetection={closestCenter} 
+      onDragEnd={handleDragEnd}
+    >
+      <Card className="h-full flex flex-col">
+        <CardHeader className="flex-shrink-0 p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-lg sm:text-xl truncate">{currentForm.name}</CardTitle>
+              <CardDescription className="hidden sm:block truncate">{currentForm.description}</CardDescription>
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            <Button onClick={addSection} variant="outline" size="sm" className="flex-shrink-0">
+              <PiPlus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add Section</span>
+            </Button>
+          </div>
+        </CardHeader>
+        
+        <CardContent 
+          className="flex-grow overflow-auto p-4 sm:p-6"
+          onClick={() => selectField(null)} // Deselect when clicking empty space
+        >
+          <SortableContext items={currentForm.layout.sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-4 sm:space-y-6">
+              {currentForm.layout.sections.length > 0 ? (
+                currentForm.layout.sections.map(section => (
+                  <SectionComponent key={section.id} sectionId={section.id} />
+                ))
+              ) : (
+                <div className="text-center py-8 sm:py-12 border-2 border-dashed rounded-lg">
+                  <p className="text-muted-foreground mb-4 text-sm sm:text-base">
+                    <span className="hidden sm:inline">Your form is empty</span>
+                    <span className="sm:hidden">Form is empty</span>
+                  </p>
+                  <Button onClick={addSection} size="sm">
+                    <PiPlus className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">Add Your First Section</span>
+                    <span className="sm:hidden">Add Section</span>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </SortableContext>
+        </CardContent>
+      </Card>
+    </DndContext>
   );
 };
 

@@ -10,8 +10,7 @@ export type FieldType =
   | 'boolean'
   | 'single-choice'
   | 'multiple-choice'
-  | 'date'
-  | 'section';
+  | 'date';
 
 export interface ValidationRule {
   type: 'required' | 'min' | 'max' | 'pattern';
@@ -40,6 +39,7 @@ export interface Field {
   label: string;
   description?: string;
   required: boolean;
+  defaultValue?: any;
   validation?: ValidationRule[];
   options: FieldOptions;
   styling: FieldStyling;
@@ -56,6 +56,7 @@ export interface Section {
   title: string;
   fields: string[]; // Field IDs
   columns: number;
+  collapsed: boolean;
   styling: SectionStyling;
 }
 
@@ -116,6 +117,7 @@ export interface FormBuilderActions {
   addField: (type: FieldType, sectionId?: string) => void;
   removeField: (fieldId: string) => void;
   updateField: (fieldId: string, updates: Partial<Field>) => void;
+  updateFieldDefaultValue: (fieldId: string, value: any) => void;
   moveField: (fieldId: string, targetSectionId: string, index: number) => void;
   duplicateField: (fieldId: string) => void;
   
@@ -123,6 +125,8 @@ export interface FormBuilderActions {
   addSection: () => void;
   removeSection: (sectionId: string) => void;
   updateSection: (sectionId: string, updates: Partial<Section>) => void;
+  moveSections: (oldIndex: number, newIndex: number) => void;
+  toggleSectionCollapse: (sectionId: string) => void;
   
   // UI operations
   selectField: (fieldId: string | null) => void;
@@ -153,58 +157,39 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
 
   switch (type) {
     case 'text':
-      return {
-        ...base,
-        options: { placeholder: 'Enter text...' }
-      };
+      return { ...base, options: { placeholder: 'Enter text...' }, defaultValue: '' };
     case 'number':
-      return {
-        ...base,
-        options: { unit: '', enabledInputs: ['input'] }
-      };
+      return { ...base, options: { unit: '', enabledInputs: ['input'] }, defaultValue: 0 };
     case 'boolean':
-      return {
-        ...base,
-        options: { displayAs: 'checkbox' }
-      };
+      return { ...base, options: { displayAs: 'checkbox' }, defaultValue: false };
     case 'single-choice':
       return {
         ...base,
         options: { 
           choices: [
-            { value: 'option1', label: 'Option 1' },
-            { value: 'option2', label: 'Option 2' }
+            { value: 'option_1', label: 'Option 1' },
+            { value: 'option_2', label: 'Option 2' }
           ],
           displayAs: 'radio'
-        }
+        },
+        defaultValue: 'option_1'
       };
     case 'multiple-choice':
       return {
         ...base,
         options: { 
           choices: [
-            { value: 'option1', label: 'Option 1' },
-            { value: 'option2', label: 'Option 2' }
+            { value: 'option_1', label: 'Option 1' },
+            { value: 'option_2', label: 'Option 2' }
           ],
           displayAs: 'checkboxGroup'
-        }
+        },
+        defaultValue: ['option_1']
       };
     case 'date':
-      return {
-        ...base,
-        options: {}
-      };
-    case 'section':
-      return {
-        ...base,
-        label: 'New Section',
-        options: {}
-      };
+      return { ...base, options: {}, defaultValue: '' };
     default:
-      return {
-        ...base,
-        options: {}
-      };
+      return { ...base, options: {}, defaultValue: null };
   }
 };
 
@@ -360,22 +345,29 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
     set(produce((state: FormBuilderState) => {
       if (!state.currentForm) return;
 
-      // Add field to form
+      // Add field to form's main list
       state.currentForm.fields.push(newField);
 
-      if (type === 'section') {
-        // Create new section
-        const newSection: Section = {
-          id: newField.id,
-          title: newField.label,
-          fields: [],
-          columns: 1,
-          styling: { color: 'secondary' }
-        };
-        state.currentForm.layout.sections.push(newSection);
-      } else if (sectionId) {
+      let targetSectionId = sectionId;
+
+      // If no sectionId is provided, figure it out from the selection
+      if (!targetSectionId && state.selectedFieldId) {
+        // Is the selection a section?
+        let section = state.currentForm.layout.sections.find(s => s.id === state.selectedFieldId);
+        if (section) {
+          targetSectionId = section.id;
+        } else {
+          // Is the selection a field inside a section?
+          const parentSection = state.currentForm.layout.sections.find(s => s.fields.includes(state.selectedFieldId!));
+          if (parentSection) {
+            targetSectionId = parentSection.id;
+          }
+        }
+      }
+      
+      if (targetSectionId) {
         // Add to specific section
-        const section = state.currentForm.layout.sections.find(s => s.id === sectionId);
+        const section = state.currentForm.layout.sections.find(s => s.id === targetSectionId);
         if (section) {
           section.fields.push(newField.id);
         }
@@ -387,6 +379,7 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
             title: 'Main Section',
             fields: [newField.id],
             columns: 1,
+            collapsed: false,
             styling: { color: 'secondary' }
           };
           state.currentForm.layout.sections.push(defaultSection);
@@ -395,6 +388,7 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
         }
       }
 
+      // After adding, select the new field
       state.selectedFieldId = newField.id;
       state.currentForm.updatedAt = new Date();
     }));
@@ -404,16 +398,30 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
     set(produce((state: FormBuilderState) => {
       if (!state.currentForm) return;
 
-      // Remove field from fields array
-      state.currentForm.fields = state.currentForm.fields.filter(f => f.id !== fieldId);
+      // Check if this is a section being removed
+      const isSection = state.currentForm.layout.sections.some(s => s.id === fieldId);
+      
+      if (isSection) {
+        // Remove the section and all its fields
+        const section = state.currentForm.layout.sections.find(s => s.id === fieldId);
+        if (section) {
+          // Remove all fields in the section
+          section.fields.forEach(fId => {
+            state.currentForm!.fields = state.currentForm!.fields.filter(f => f.id !== fId);
+          });
+          
+          // Remove the section itself
+          state.currentForm.layout.sections = state.currentForm.layout.sections.filter(s => s.id !== fieldId);
+        }
+      } else {
+        // Remove field from fields array
+        state.currentForm.fields = state.currentForm.fields.filter(f => f.id !== fieldId);
 
-      // Remove field from all sections
-      state.currentForm.layout.sections.forEach(section => {
-        section.fields = section.fields.filter(id => id !== fieldId);
-      });
-
-      // Remove section if it was a section field
-      state.currentForm.layout.sections = state.currentForm.layout.sections.filter(s => s.id !== fieldId);
+        // Remove field from all sections
+        state.currentForm.layout.sections.forEach(section => {
+          section.fields = section.fields.filter(id => id !== fieldId);
+        });
+      }
 
       // Clear selection if deleted field was selected
       if (state.selectedFieldId === fieldId) {
@@ -431,17 +439,20 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
       const field = state.currentForm.fields.find(f => f.id === fieldId);
       if (field) {
         Object.assign(field, updates);
-        
-        // If it's a section field, also update the section
-        if (field.type === 'section') {
-          const section = state.currentForm.layout.sections.find(s => s.id === fieldId);
-          if (section && updates.label) {
-            section.title = updates.label;
-          }
-        }
-        
         state.currentForm.updatedAt = new Date();
       }
+    }));
+  },
+
+  updateFieldDefaultValue: (fieldId: string, value: any) => {
+    set(produce((state: FormBuilderState) => {
+        if (!state.currentForm) return;
+
+        const field = state.currentForm.fields.find(f => f.id === fieldId);
+        if (field) {
+            field.defaultValue = value;
+            state.currentForm.updatedAt = new Date();
+        }
     }));
   },
 
@@ -493,33 +504,26 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
 
   // Section operations
   addSection: () => {
-    get().addField('section');
-  },
+    const newSection: Section = {
+      id: generateId('section'),
+      title: 'New Section',
+      fields: [],
+      columns: 1,
+      collapsed: false,
+      styling: { color: 'secondary' }
+    };
 
-  removeSection: (sectionId: string) => {
     set(produce((state: FormBuilderState) => {
       if (!state.currentForm) return;
 
-      const section = state.currentForm.layout.sections.find(s => s.id === sectionId);
-      if (section) {
-        // Remove all fields in the section
-        section.fields.forEach(fieldId => {
-          state.currentForm!.fields = state.currentForm!.fields.filter(f => f.id !== fieldId);
-        });
-
-        // Remove the section
-        state.currentForm.layout.sections = state.currentForm.layout.sections.filter(s => s.id !== sectionId);
-
-        // Remove section field
-        state.currentForm.fields = state.currentForm.fields.filter(f => f.id !== sectionId);
-
-        if (state.selectedFieldId === sectionId) {
-          state.selectedFieldId = null;
-        }
-
-        state.currentForm.updatedAt = new Date();
-      }
+      state.currentForm.layout.sections.push(newSection);
+      state.selectedFieldId = newSection.id;
+      state.currentForm.updatedAt = new Date();
     }));
+  },
+
+  removeSection: (sectionId: string) => {
+    get().removeField(sectionId);
   },
 
   updateSection: (sectionId: string, updates: Partial<Section>) => {
@@ -529,6 +533,39 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
       const section = state.currentForm.layout.sections.find(s => s.id === sectionId);
       if (section) {
         Object.assign(section, updates);
+        
+        // Also update the corresponding field if title changed
+        if (updates.title) {
+          const field = state.currentForm.fields.find(f => f.id === sectionId);
+          if (field) {
+            field.label = updates.title;
+          }
+        }
+        
+        state.currentForm.updatedAt = new Date();
+      }
+    }));
+  },
+
+  moveSections: (oldIndex: number, newIndex: number) => {
+    set(produce((state: FormBuilderState) => {
+      if (!state.currentForm) return;
+
+      const sections = state.currentForm.layout.sections;
+      const [movedSection] = sections.splice(oldIndex, 1);
+      sections.splice(newIndex, 0, movedSection);
+      
+      state.currentForm.updatedAt = new Date();
+    }));
+  },
+
+  toggleSectionCollapse: (sectionId: string) => {
+    set(produce((state: FormBuilderState) => {
+      if (!state.currentForm) return;
+
+      const section = state.currentForm.layout.sections.find(s => s.id === sectionId);
+      if (section) {
+        section.collapsed = !section.collapsed;
         state.currentForm.updatedAt = new Date();
       }
     }));

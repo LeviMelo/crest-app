@@ -1,132 +1,135 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { useFormBuilderStoreV2 } from '@/stores/formBuilderStore.v2';
 import ToolboxV2 from '@/components/form-builder-v2/ToolboxV2';
 import CanvasV2 from '@/components/form-builder-v2/CanvasV2';
 import InspectorV2 from '@/components/form-builder-v2/InspectorV2';
-import { 
-  PiSquaresFourDuotone, 
-  PiFloppyDiskDuotone, 
-  PiPlus, 
-  PiEye,
-  PiWrench,
-  PiGearSix
-} from 'react-icons/pi';
+import { Button } from '@/components/ui/Button';
+import { useFormBuilderStoreV2 } from '@/stores/formBuilderStore.v2';
+import { PiSquaresFourDuotone, PiFloppyDiskDuotone, PiPlus, PiWrench, PiEye } from 'react-icons/pi';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
+import { InputField } from '@/components/ui/InputField';
+import { TextareaField } from '@/components/ui/TextareaField';
 
 type MobileTab = 'toolbox' | 'canvas' | 'inspector';
 
 const ProjectFormBuilderPageV2: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
-  const [activeTab, setActiveTab] = useState<MobileTab>('canvas');
-  
   const { 
     currentForm, 
-    projectForms, 
-    isLoading, 
-    isSaving, 
-    errors,
     createNewForm, 
-    loadForm, 
-    saveForm,
-    updateFormMetadata,
-    clearErrors
+    saveForm, 
+    updateFormMetadata, 
+    isSaving,
+    errors 
   } = useFormBuilderStoreV2();
+  
+  const [activeTab, setActiveTab] = useState<MobileTab>('canvas');
+  const [isFormSettingsOpen, setIsFormSettingsOpen] = useState(false);
 
   // Initialize with a new form if none exists
   useEffect(() => {
-    if (projectId && !currentForm && projectForms.length === 0) {
-      createNewForm(projectId);
+    if (!currentForm) {
+      createNewForm('proj_crest_001'); // Using the mock project ID
     }
-  }, [projectId, currentForm, projectForms, createNewForm]);
+  }, [currentForm, createNewForm]);
 
   const handleCreateNew = () => {
-    if (projectId) {
-      createNewForm(projectId);
-    }
+    createNewForm('proj_crest_001');
+    setActiveTab('canvas');
   };
 
   const handleSave = async () => {
-    await saveForm();
+    try {
+      await saveForm();
+    } catch (error) {
+      console.error('Failed to save form:', error);
+    }
   };
 
   const tabs = [
-    { id: 'toolbox' as MobileTab, label: 'Tools', icon: PiWrench },
-    { id: 'canvas' as MobileTab, label: 'Canvas', icon: PiEye },
-    { id: 'inspector' as MobileTab, label: 'Inspector', icon: PiGearSix },
+    { id: 'toolbox' as MobileTab, label: 'Tools', shortLabel: 'Tools', icon: PiWrench },
+    { id: 'canvas' as MobileTab, label: 'Canvas', shortLabel: 'Canvas', icon: PiEye },
+    { id: 'inspector' as MobileTab, label: 'Inspector', shortLabel: 'Edit', icon: PiSquaresFourDuotone },
   ];
 
   return (
-    <div className="space-y-6 flex flex-col min-h-0">
+    <div className="space-y-4 sm:space-y-6 flex flex-col min-h-0">
       <PageHeader
         title="Form Builder V2"
-        subtitle="Create and edit forms with the new simplified builder"
         icon={PiSquaresFourDuotone}
       >
+        <div className="mb-4">
+          <p className="text-muted-foreground text-lg">
+            <span className="hidden sm:inline">Design and configure your dynamic data collection forms for this project.</span>
+            <span className="sm:hidden">Design your forms</span>
+          </p>
+        </div>
         <div className="flex gap-2">
-          <Button onClick={handleCreateNew} variant="outline">
-            <PiPlus className="mr-2" />
-            New Form
+          <Button 
+            variant="outline" 
+            onClick={() => setIsFormSettingsOpen(!isFormSettingsOpen)}
+            size="sm"
+            className="hidden sm:flex"
+          >
+            <span className="hidden lg:inline">Form Settings</span>
+            <span className="lg:hidden">Settings</span>
+          </Button>
+          <Button onClick={handleCreateNew} variant="outline" size="sm">
+            <PiPlus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">New Form</span>
           </Button>
           <Button 
             onClick={handleSave} 
+            disabled={isSaving || !currentForm}
             variant="gradient"
-            disabled={!currentForm || isSaving}
+            size="sm"
           >
-            <PiFloppyDiskDuotone className="mr-2" />
-            {isSaving ? 'Saving...' : 'Save Form'}
+            <PiFloppyDiskDuotone className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save Form'}</span>
+            <span className="sm:hidden">{isSaving ? '...' : 'Save'}</span>
           </Button>
         </div>
       </PageHeader>
 
       {/* Error Display */}
       {errors.length > 0 && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium text-destructive">Form Errors</h4>
-            <Button size="sm" variant="ghost" onClick={clearErrors}>
-              Clear
-            </Button>
-          </div>
-          <ul className="mt-2 space-y-1">
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 sm:p-4">
+          <h4 className="font-medium text-destructive mb-2">
+            <span className="hidden sm:inline">Form Builder Errors</span>
+            <span className="sm:hidden">Errors</span>
+          </h4>
+          <ul className="text-sm text-destructive space-y-1">
             {errors.map((error) => (
-              <li key={error.id} className="text-sm text-destructive">
-                • {error.message}
-              </li>
+              <li key={error.id}>• {error.message}</li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Form Metadata Editor */}
-      {currentForm && (
+      {/* Form Settings Card (Collapsible) */}
+      {isFormSettingsOpen && currentForm && (
         <Card>
-          <CardHeader>
-            <CardTitle>Form Settings</CardTitle>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-lg sm:text-xl">
+              <span className="hidden sm:inline">Form Settings</span>
+              <span className="sm:hidden">Settings</span>
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Form Name</label>
-                <input
-                  type="text"
-                  value={currentForm.name}
-                  onChange={(e) => updateFormMetadata({ name: e.target.value })}
-                  className="mt-1 w-full p-2 border rounded"
-                  placeholder="Enter form name..."
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <input
-                  type="text"
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <InputField
+                id="form-name"
+                label="Form Name"
+                value={currentForm.name}
+                onChange={(e) => updateFormMetadata({ name: e.target.value })}
+              />
+              <div className="lg:col-span-2">
+                <TextareaField
+                  id="form-description"
+                  label="Description"
                   value={currentForm.description}
                   onChange={(e) => updateFormMetadata({ description: e.target.value })}
-                  className="mt-1 w-full p-2 border rounded"
-                  placeholder="Enter form description..."
+                  rows={2}
                 />
               </div>
             </div>
@@ -142,14 +145,15 @@ const ProjectFormBuilderPageV2: React.FC = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex-1 flex flex-col items-center gap-1 py-2 px-3 rounded-md text-xs font-medium transition-colors",
+                "flex-1 flex flex-col items-center gap-1 py-2 px-2 rounded-md text-xs font-medium transition-colors",
                 activeTab === tab.id
                   ? "bg-background text-primary shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               <tab.icon className="h-4 w-4" />
-              {tab.label}
+              <span className="hidden xs:inline">{tab.label}</span>
+              <span className="xs:hidden">{tab.shortLabel}</span>
             </button>
           ))}
         </div>
@@ -164,7 +168,7 @@ const ProjectFormBuilderPageV2: React.FC = () => {
 
       {/* Desktop Layout */}
       <div className="hidden lg:flex flex-col flex-grow min-h-0">
-        <div className="grid grid-cols-12 gap-6 flex-grow min-h-0">
+        <div className="grid grid-cols-12 gap-4 xl:gap-6 flex-grow min-h-0">
           {/* Left Panel: Toolbox */}
           <div className="col-span-3 h-full min-h-0">
             <ToolboxV2 />
@@ -181,15 +185,6 @@ const ProjectFormBuilderPageV2: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Loading State */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-lg shadow-lg">
-            <p className="text-center">Loading form...</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

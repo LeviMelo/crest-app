@@ -23,19 +23,25 @@ Input.displayName = "Input"
 
 export interface InputFieldProps extends InputProps {
     label: string;
+    subtitle?: string;
     id: string;
     containerClassName?: string;
     addon?: React.ReactNode;
 }
 
 const InputField = React.forwardRef<HTMLInputElement, InputFieldProps>(
-    ({ label, id, required, containerClassName, className, addon, ...props }, ref) => {
+    ({ label, id, subtitle, required, containerClassName, className, addon, ...props }, ref) => {
         return (
             <div className={cn("grid w-full items-center gap-1.5", containerClassName)}>
-                <label htmlFor={id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    {label}
-                    {required && <span className="text-destructive ml-1">*</span>}
-                </label>
+                {label && (
+                    <label htmlFor={id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {label}
+                        {required && <span className="text-destructive ml-1">*</span>}
+                    </label>
+                )}
+                {subtitle && (
+                    <p className={cn("text-xs text-muted-foreground", label && "-mt-1")}>{subtitle}</p>
+                )}
                 <div className="relative">
                     <Input id={id} ref={ref} required={required} className={cn(addon ? "pr-12" : "", className)} {...props} />
                     {addon && (
