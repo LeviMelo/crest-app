@@ -1,5 +1,5 @@
 import React from 'react';
-import { useFormBuilderStoreV2, Field, FieldType } from '@/stores/formBuilderStore.v2';
+import { Field, FieldType, Form } from '@/stores/formBuilderStore.v2';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/Input';
 import { Checkbox } from '@/components/ui/Checkbox';
@@ -10,6 +10,7 @@ import Stepper from '@/components/ui/Stepper';
 import { Switch } from '@/components/ui/Switch';
 import { MultiAutocompleteInput } from '../ui/MultiAutocompleteInput';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { AnimatePresence, motion } from 'framer-motion';
 
 // Allow custom CSS properties
 interface CSSPropertiesWithVars extends React.CSSProperties {
@@ -17,6 +18,72 @@ interface CSSPropertiesWithVars extends React.CSSProperties {
 }
 
 type FontSize = 'sm' | 'base' | 'lg';
+
+
+const ToggledFieldRenderer: React.FC<{
+    field: Field,
+    fontSize: FontSize,
+    onValueChange: (value: any) => void
+}> = ({ field, fontSize, onValueChange: handleValueChange }) => {
+    const isStructuredDefault = field.defaultValue && typeof field.defaultValue === 'object' && 'value' in field.defaultValue;
+    const value = isStructuredDefault ? field.defaultValue.value : field.defaultValue;
+    const isToggled = isStructuredDefault ? (field.defaultValue.toggled || false) : false;
+
+    const labelClasses = { sm: 'text-xs', base: 'text-sm', lg: 'text-base' }[fontSize];
+    const descriptionClasses = { sm: 'text-[11px]', base: 'text-xs', lg: 'text-sm' }[fontSize];
+    const RequiredBadge = () => field.required ? (
+        <div className={cn("font-semibold uppercase bg-destructive/10 text-destructive rounded-full px-2 py-0.5", { 'text-[9px]': fontSize === 'sm', 'text-[10px]': fontSize === 'base', 'text-xs': fontSize === 'lg'})}>Required</div>
+    ) : null;
+
+    const handleToggle = (toggled: boolean) => {
+        handleValueChange({ ...(isStructuredDefault ? field.defaultValue : { value }), toggled });
+    };
+
+    const onRendererValueChange = (newValue: any) => {
+        if (isStructuredDefault) {
+            handleValueChange({ ...field.defaultValue, value: newValue });
+        } else {
+            handleValueChange(newValue);
+        }
+    };
+
+    // Create a temporary field with the raw value for the inner renderer
+    const tempField = { ...field, defaultValue: value };
+
+    return (
+        <div className="space-y-1.5 p-3">
+          <div className="flex items-center space-x-3">
+             <Switch
+              id={`toggle-${field.id}`}
+              checked={isToggled}
+              onCheckedChange={handleToggle}
+            />
+            <label htmlFor={`toggle-${field.id}`} className={cn("font-medium flex-1", labelClasses, "cursor-pointer truncate")}>
+              {field.label}
+            </label>
+          </div>
+          <AnimatePresence>
+            {isToggled && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden pl-10"
+              >
+                <div className="pt-2 pb-1 space-y-2">
+                   <div className="flex justify-between items-start">
+                      {field.description && <p className={cn("text-muted-foreground max-w-prose", descriptionClasses)}>{field.description}</p>}
+                      <RequiredBadge />
+                   </div>
+                  <FieldRenderer field={tempField} fontSize={fontSize} onValueChange={onRendererValueChange} showLabel={false} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+    );
+};
 
 
 // This new component contains the original rendering logic from getFieldPreview
@@ -451,9 +518,9 @@ const FieldRenderer: React.FC<{
                   <Checkbox
                     id={`${field.id}-${choice.value}`}
                     checked={selectedValues.has(choice.value)}
-                    onCheckedChange={(checked) => {
+                    onChange={(e) => {
                       const newSelected = new Set(selectedValues);
-                      if (checked) {
+                      if (e.target.checked) {
                         newSelected.add(choice.value);
                       } else {
                         newSelected.delete(choice.value);
@@ -525,7 +592,7 @@ const FormRendererV2: React.FC<FormRendererV2Props> = ({ form, formData, onFormD
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4">
-              {section.fields.map(fieldId => {
+              {section.fields.map((fieldId: string) => {
                 const field = getField(fieldId);
                 if (!field) return null;
 
@@ -534,6 +601,19 @@ const FormRendererV2: React.FC<FormRendererV2Props> = ({ form, formData, onFormD
                   defaultValue: formData[fieldId] !== undefined ? formData[fieldId] : field.defaultValue,
                 };
                 
+                // DECISION POINT: Render a togglable container or the direct field
+                if (field.options.togglable) {
+                    return (
+                        <div key={fieldId} className={getWidthClass(field)}>
+                            <ToggledFieldRenderer
+                                field={fieldWithValue}
+                                fontSize={section.styling.fontSize || 'base'}
+                                onValueChange={(newValue) => handleFieldChange(fieldId, newValue)}
+                            />
+                        </div>
+                    );
+                }
+
                 return (
                   <div key={fieldId} className={getWidthClass(field)}>
                     <FieldRenderer 
