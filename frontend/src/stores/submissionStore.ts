@@ -2,27 +2,24 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { PatientInputData } from '@/types';
-import { FormSchema, FormUiSchema } from './formBuilderStore';
+import { Form } from './formBuilderStore.v2';
 
-export interface FormDefinition {
-  key: string; 
-  name: string;
-  version: string;
-  schema: FormSchema;
-  uiSchema: FormUiSchema;
-}
+// The FormDefinition interface is no longer the source of truth for V2 forms.
+// We will now use the V2 `Form` type directly.
+export type { Form as FormDefinition };
+
 
 interface SubmissionState {
   isEncounterActive: boolean;
   patientData: PatientInputData | null;
-  formSequence: FormDefinition[];
+  formSequence: Form[];
   currentFormIndex: number; // -1: patient input, 0 to n-1: forms, n: review
   allFormsData: { [formKey: string]: any };
   lastUpdateTimestamp: number | null;
 }
 
 interface SubmissionActions {
-  startNewEncounter: (patientData: PatientInputData, sequence: FormDefinition[]) => void;
+  startNewEncounter: (patientData: PatientInputData, sequence: Form[]) => void;
   saveCurrentForm: (formKey: string, data: any) => void;
   setCurrentFormIndex: (index: number) => void;
   updatePatientData: (patientData: Partial<PatientInputData>) => void;

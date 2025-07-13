@@ -8,8 +8,6 @@ import { useNavigate, useParams } from 'react-router-dom'; // + Import hooks
 import PatientRegistrationModal from '@/components/forms/PatientRegistrationModal';
 import { useSubmissionStore } from '@/stores/submissionStore';
 import { useFormBuilderStoreV2 } from '@/stores/formBuilderStore.v2';
-import { convertFormsToSubmissionFormat } from '@/data/forms/formConverter';
-import { FormDefinition } from '@/stores/submissionStore';
 
 const DataSubmissionsHubPage: React.FC = () => {
     const navigate = useNavigate(); // + Get navigation function
@@ -40,9 +38,7 @@ const DataSubmissionsHubPage: React.FC = () => {
             return;
         }
 
-        const formSequence: FormDefinition[] = convertFormsToSubmissionFormat(formsForProject);
-
-        startNewEncounter(patientData, formSequence);
+        startNewEncounter(patientData, formsForProject);
         navigate(`/project/${projectId}/submissions/new`);
     };
 

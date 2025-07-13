@@ -9,18 +9,17 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/Card';
 import { InputField } from '@/components/ui/InputField';
 import DraftStatusBar from '@/components/forms/DraftStatusBar';
-import DynamicFormRenderer from '@/components/forms/DynamicFormRenderer';
+import FormRendererV2 from '@/components/forms/FormRendererV2';
 import { PiListChecksDuotone, PiArrowLeft, PiArrowRight, PiPaperPlaneTilt } from 'react-icons/pi';
 import { cn } from '@/lib/utils';
 import { useNavigate, useParams } from 'react-router-dom';
-import { convertFormsToSubmissionFormat, FormDefinition } from '@/data/forms/formConverter';
 
 // This component will be used for the Stepper UI
 const SubmissionStepper: React.FC = () => {
     const { currentFormIndex, formSequence } = useSubmissionStore();
     const steps = [
         { key: 'patient', label: 'Patient Info' },
-        ...formSequence.map(f => ({ key: f.key, label: f.name })),
+        ...formSequence.map(f => ({ key: f.id, label: f.name })),
         { key: 'review', label: 'Review & Submit' }
     ];
     const activeIndex = currentFormIndex + 1;
@@ -121,27 +120,20 @@ const EncounterPage: React.FC = () => {
 
     
     // The available forms are now the V2 project forms, converted for submission
-    const availableFormsForSubmission: FormDefinition[] = React.useMemo(() => {
-        const crestForms = projectForms.filter(f => f.projectId === projectId);
-        
-        if (crestForms.length === 0) {
-            return [];
-        }
-        
-        const converted = convertFormsToSubmissionFormat(crestForms);
-        return converted;
+    const availableFormsForSubmission = React.useMemo(() => {
+        return projectForms.filter(f => f.projectId === projectId);
     }, [projectForms, projectId]);
 
     // Get the current form definition, which includes the schema and uiSchema
-    const currentFormDef = (currentFormIndex >= 0 && currentFormIndex < formSequence.length)
+    const currentForm = (currentFormIndex >= 0 && currentFormIndex < formSequence.length)
         ? formSequence[currentFormIndex]
         : null;
 
     useEffect(() => {
-        if (isEncounterActive && currentFormDef) {
-            setCurrentStepFormData(allFormsData[currentFormDef.key] || {});
+        if (isEncounterActive && currentForm) {
+            setCurrentStepFormData(allFormsData[currentForm.id] || {});
         }
-    }, [currentFormDef, isEncounterActive, allFormsData]);
+    }, [currentForm, isEncounterActive, allFormsData]);
 
     const handleStart = () => {
         if (patientData?.initials && patientData?.gender && patientData?.dob && patientData.projectConsent) {
@@ -161,16 +153,16 @@ const EncounterPage: React.FC = () => {
     };
 
     const handleNavigate = (direction: 'next' | 'previous') => {
-        if (currentFormDef) {
-            saveCurrentForm(currentFormDef.key, currentStepFormData);
+        if (currentForm) {
+            saveCurrentForm(currentForm.id, currentStepFormData);
         }
         setCurrentFormIndex(currentFormIndex + (direction === 'next' ? 1 : -1));
     };
     
     const handleSubmitAndExit = () => {
         // Save the final form state before submitting
-        if (currentFormDef) {
-            saveCurrentForm(currentFormDef.key, currentStepFormData);
+        if (currentForm) {
+            saveCurrentForm(currentForm.id, currentStepFormData);
         }
         alert('Submitting all data to the backend (see console).');
         completeAndClearEncounter();
@@ -199,17 +191,16 @@ const EncounterPage: React.FC = () => {
     );
 
     const renderFormStep = () => {
-        if (!currentFormDef) return null;
+        if (!currentForm) return null;
         
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>{currentFormDef.name}</CardTitle>
+                    <CardTitle>{currentForm.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <DynamicFormRenderer
-                        schema={currentFormDef.schema}
-                        uiSchema={currentFormDef.uiSchema}
+                    <FormRendererV2
+                        form={currentForm}
                         formData={currentStepFormData}
                         onFormDataChange={setCurrentStepFormData}
                     />
@@ -235,9 +226,9 @@ const EncounterPage: React.FC = () => {
                     <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto">{JSON.stringify(patientData, null, 2)}</pre>
                 </div>
                 {formSequence.map(formDef => (
-                    <div key={formDef.key}>
+                    <div key={formDef.id}>
                         <h3 className="font-semibold mb-2">{formDef.name}</h3>
-                        <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto">{JSON.stringify(allFormsData[formDef.key] || { message: "No data entered for this form." }, null, 2)}</pre>
+                        <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto">{JSON.stringify(allFormsData[formDef.id] || { message: "No data entered for this form." }, null, 2)}</pre>
                     </div>
                 ))}
             </CardContent>
