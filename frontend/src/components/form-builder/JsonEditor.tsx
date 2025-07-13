@@ -4,7 +4,7 @@ import Editor from 'react-simple-code-editor';
 // @ts-ignore
 import { highlight, languages } from 'prismjs/components/prism-core';
 import 'prismjs/components/prism-json';
-import 'prismjs/themes/prism-tomorrow.css';
+import 'prismjs/themes/prism-tomorrow.css'; 
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/Button';
 import { PiCheck, PiCopy } from 'react-icons/pi';
@@ -52,19 +52,19 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
         {copied ? <PiCheck className="text-emerald-400" /> : <PiCopy className="w-4 h-4" />}
       </Button>
       <div className="h-full w-full overflow-auto">
-        <Editor
-          value={jsonString}
+          <Editor
+            value={jsonString}
           onValueChange={readOnly ? () => {} : handleChange}
-          highlight={(code) => highlight(code, languages.json, 'json')}
-          padding={10}
+            highlight={(code) => highlight(code, languages.json, 'json')}
+            padding={10}
           className="font-mono text-xs text-white min-h-full"
-          style={{
+            style={{
             fontFamily: '"Fira Code", "Fira Mono", monospace',
-            fontSize: 12,
-          }}
+              fontSize: 12,
+            }}
           readOnly={readOnly}
-        />
-      </div>
+          />
+        </div>
       {showError && error && (
         <div className="absolute bottom-0 left-0 right-0 p-2 text-xs text-destructive bg-destructive/20 border-t border-destructive/30">
           <strong>JSON Error:</strong> {error}

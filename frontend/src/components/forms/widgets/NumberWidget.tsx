@@ -10,15 +10,15 @@ interface NumberWidgetProps {
   onChange: (newValue: number | undefined) => void;
   options: {
     unit?: string;
-    enabledInputs: ('inputBox' | 'slider' | 'stepper')[];
+    enabledInputs?: ('inputBox' | 'slider' | 'stepper')[];
   };
-  schema: {
+  schema?: {
     minimum?: number;
     maximum?: number;
   };
 }
 
-const NumberWidget: React.FC<NumberWidgetProps> = ({ label, value, onChange, options, schema }) => {
+const NumberWidget: React.FC<NumberWidgetProps> = ({ label, value, onChange, options = {}, schema = {} }) => {
   const { unit, enabledInputs = ['inputBox'] } = options;
   const { minimum, maximum } = schema;
 
@@ -39,25 +39,25 @@ const NumberWidget: React.FC<NumberWidgetProps> = ({ label, value, onChange, opt
     <div className="space-y-4">
       <label className="text-sm font-medium">{label}</label>
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-      {enabledInputs.includes('inputBox') && (
+        {enabledInputs.includes('inputBox') && (
           <InputField
             id={`input-${label}`}
             type="number"
             label=""
-              containerClassName='w-full sm:w-40'
+            containerClassName='w-full sm:w-40'
             value={value || ''}
             onChange={handleInputChange}
             min={minimum}
             max={maximum}
-              addon={unit}
-        />
-      )}
-      {enabledInputs.includes('stepper') && (
-        <Stepper
-          value={value || 0}
-          onValueChange={onChange}
-          min={minimum}
-          max={maximum}
+            addon={unit}
+          />
+        )}
+        {enabledInputs.includes('stepper') && (
+          <Stepper
+            value={value || 0}
+            onValueChange={onChange}
+            min={minimum}
+            max={maximum}
           />
         )}
       </div>

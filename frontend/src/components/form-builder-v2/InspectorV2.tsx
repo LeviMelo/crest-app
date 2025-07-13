@@ -506,13 +506,13 @@ const InspectorV2: React.FC = () => {
                   <span className="sm:hidden">Types</span>
                 </label>
                 <div className="mt-2 space-y-2">
-                  {['input', 'slider', 'stepper'].map((inputType) => (
+                  {['inputBox', 'slider', 'stepper'].map((inputType) => (
                     <div key={inputType} className="flex items-center space-x-2">
                       <Checkbox
                         id={`input-${inputType}`}
                         checked={localField.options.enabledInputs?.includes(inputType) || false}
                         onChange={(e) => {
-                          const current = localField.options.enabledInputs || ['input'];
+                          const current = localField.options.enabledInputs || ['inputBox'];
                           const updated = e.target.checked
                             ? [...current, inputType]
                             : current.filter(t => t !== inputType);
@@ -520,7 +520,7 @@ const InspectorV2: React.FC = () => {
                         }}
                       />
                       <label htmlFor={`input-${inputType}`} className="text-sm capitalize">
-                        {inputType}
+                        {inputType === 'inputBox' ? 'Input Box' : inputType}
                       </label>
                     </div>
                   ))}
@@ -556,7 +556,7 @@ const InspectorV2: React.FC = () => {
                   <span className="sm:hidden">Display</span>
                 </label>
                 <Select
-                  value={localField.options.displayAs || (localField.type === 'single-choice' ? 'radio' : 'checkboxGroup')}
+                  value={localField.options.displayAs || (localField.type === 'single-choice' ? 'button-group' : 'button-group')}
                   onValueChange={(value: string) => updateLocalOptions({ displayAs: value })}
                 >
                   <SelectTrigger className="mt-1">

@@ -13,15 +13,23 @@ import { PiHouseDuotone, PiListChecksDuotone, PiSquaresFourDuotone, PiUsersThree
 const Sidebar: React.FC = () => {
     const { projectId } = useParams<{ projectId: string }>();
     const { user, activeProjectRoles, setProjectRoles } = useAuthStore();
-    const { activeProjectDetails, setActiveProject } = useProjectStore();
+    const { activeProjectDetails, availableProjects, setActiveProject, fetchAvailableProjects, error, isLoading } = useProjectStore();
     const { isSidebarOpen, setSidebarOpen } = useUiStore();
 
     useEffect(() => {
+        // First ensure projects are loaded
+        if (availableProjects.length === 0) {
+            fetchAvailableProjects();
+        }
+    }, [availableProjects.length, fetchAvailableProjects]);
+
+    useEffect(() => {
         // Ensure the active project in the store matches the URL param
-        if (projectId && (!activeProjectDetails || activeProjectDetails.id !== projectId)) {
+        // Only try to set if we have projects loaded
+        if (projectId && availableProjects.length > 0 && (!activeProjectDetails || activeProjectDetails.id !== projectId)) {
             setActiveProject(projectId);
         }
-    }, [projectId, activeProjectDetails, setActiveProject]);
+    }, [projectId, activeProjectDetails, setActiveProject, availableProjects.length]);
 
     useEffect(() => {
         if (user && activeProjectDetails) {
@@ -59,6 +67,57 @@ const Sidebar: React.FC = () => {
     const visibleNavItems = projectNavItems.filter(item =>
         !item.roles || item.roles.some(role => activeProjectRoles.includes(role))
     );
+
+    // If there's an error (like project not found), show error state
+    if (error && projectId) {
+        return (
+            <>
+                {/* Mobile Overlay */}
+                {isSidebarOpen && (
+                    <div 
+                        className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+                        onClick={() => setSidebarOpen(false)}
+                    />
+                )}
+
+                {/* Sidebar with error state */}
+                <aside 
+                    id="mobile-sidebar"
+                    className={cn(
+                        "fixed top-0 left-0 z-40 h-screen bg-card/95 backdrop-blur-xl border-r transition-transform duration-300 ease-in-out",
+                        "pt-[var(--header-height)]",
+                        "w-64 lg:w-64",
+                        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+                    )}
+                >
+                    <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="absolute top-4 right-4 p-2 rounded-lg hover:bg-accent lg:hidden z-10"
+                        aria-label="Close sidebar"
+                    >
+                        <PiX className="h-5 w-5" />
+                    </button>
+
+                    <div className="h-full overflow-y-auto scrollbar-hide">
+                        <div className="px-3 py-4">
+                            <div className="text-center py-8">
+                                <div className="text-destructive mb-2">Project Not Found</div>
+                                <div className="text-sm text-muted-foreground mb-4">
+                                    Could not load details for project ID '{projectId}'.
+                                </div>
+                                <button 
+                                    onClick={() => window.location.href = '/'}
+                                    className="text-sm text-primary hover:underline"
+                                >
+                                    Back to Dashboard
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </>
+        );
+    }
 
     return (
         <>

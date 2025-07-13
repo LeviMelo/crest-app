@@ -6,7 +6,7 @@ import { Command as CommandPrimitive } from "cmdk"
 import { PiMagnifyingGlassDuotone } from "react-icons/pi"
 
 import { cn } from "@/lib/utils"
-import { Dialog, DialogContent } from "@/components/ui/Dialog"
+import { Dialog, DialogContent, DialogDescription } from "@/components/ui/Dialog"
 
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
@@ -29,6 +29,9 @@ const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
   return (
     <Dialog {...props}>
       <DialogContent className="overflow-hidden p-0 shadow-lg">
+        <DialogDescription className="sr-only">
+          Command palette for searching and selecting options
+        </DialogDescription>
         <Command>{children}</Command>
       </DialogContent>
     </Dialog>

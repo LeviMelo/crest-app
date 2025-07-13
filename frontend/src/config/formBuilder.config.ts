@@ -132,7 +132,7 @@ export const FORM_BUILDER_PRIMITIVES: FieldPrimitive[] = [
     defaultUiSchema: {
       'ui:widget': 'ChoiceWidget',
       'ui:options': {
-        displayAs: 'checkboxGroup',
+        displayAs: 'button-group',
         color: 'primary',
       },
     },

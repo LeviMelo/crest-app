@@ -104,14 +104,14 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
     set({
       schema: structuredClone(form.schema),
       uiSchema: structuredClone(form.uiSchema),
-      selectedFieldId: null,
+    selectedFieldId: null,
     });
   },
 
   setMetadata: ({ title, description }) => {
     set(produce((state: FormBuilderState) => {
-      if (title !== undefined) state.schema.title = title;
-      if (description !== undefined) state.schema.description = description;
+    if (title !== undefined) state.schema.title = title;
+    if (description !== undefined) state.schema.description = description;
     }));
   },
 
@@ -136,7 +136,7 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
             targetSchema.properties[newFieldId] = structuredClone(primitive.defaultSchema);
             state.uiSchema[newFieldId] = structuredClone(primitive.defaultUiSchema);
             targetUiOrder.push(newFieldId);
-            state.selectedFieldId = newFieldId;
+      state.selectedFieldId = newFieldId;
         }
     }));
   },
@@ -168,9 +168,9 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
       
       parentUiSchema['ui:order'] = parentUiSchema['ui:order'].filter((id: string) => id !== fieldId);
       
-      if (state.selectedFieldId === fieldId) {
-        state.selectedFieldId = null;
-      }
+    if (state.selectedFieldId === fieldId) {
+      state.selectedFieldId = null;
+    }
     }));
   },
 
@@ -179,7 +179,7 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
       const { parentSchema } = findFieldParent(state, fieldId);
       if (parentSchema?.properties?.[fieldId]) {
         Object.assign(parentSchema.properties[fieldId], newSchemaProps);
-      }
+    }
     }));
   },
 
@@ -189,8 +189,8 @@ export const useFormBuilderStore = create<FormBuilderState & FormBuilderActions>
         if (!state.uiSchema[fieldId]['ui:options']) {
           state.uiSchema[fieldId]['ui:options'] = {};
         }
-        Object.assign(state.uiSchema[fieldId]['ui:options'], newUiOptions);
-      }
+      Object.assign(state.uiSchema[fieldId]['ui:options'], newUiOptions);
+    }
     }));
   },
   

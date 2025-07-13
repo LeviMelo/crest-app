@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSubmissionStore } from '@/stores/submissionStore';
+import { useFormBuilderStoreV2 } from '@/stores/formBuilderStore.v2';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/Card';
@@ -11,7 +12,8 @@ import DraftStatusBar from '@/components/forms/DraftStatusBar';
 import DynamicFormRenderer from '@/components/forms/DynamicFormRenderer';
 import { PiListChecksDuotone, PiArrowLeft, PiArrowRight, PiPaperPlaneTilt } from 'react-icons/pi';
 import { cn } from '@/lib/utils';
-import { useNavigate, useParams } from 'react-router-dom'; // Import useNavigate
+import { useNavigate, useParams } from 'react-router-dom';
+import { convertFormsToSubmissionFormat, FormDefinition } from '@/data/forms/formConverter';
 
 // This component will be used for the Stepper UI
 const SubmissionStepper: React.FC = () => {
@@ -53,6 +55,7 @@ const SubmissionStepper: React.FC = () => {
 const EncounterPage: React.FC = () => {
     const navigate = useNavigate(); // Hook for navigation
     const { projectId } = useParams();
+    
     const { 
         patientData, 
         updatePatientData, 
@@ -66,7 +69,68 @@ const EncounterPage: React.FC = () => {
         formSequence,
     } = useSubmissionStore();
 
+    const { projectForms } = useFormBuilderStoreV2();
+    
     const [currentStepFormData, setCurrentStepFormData] = useState({});
+    
+    // Check if the project exists by seeing if we have any forms for this projectId
+    const projectExists = projectForms.some(f => f.projectId === projectId);
+    
+    // Show loading state if forms haven't loaded yet
+    if (projectForms.length === 0) {
+        return (
+            <div className="space-y-6">
+                <PageHeader
+                    title="Loading..."
+                    subtitle="Loading project data..."
+                    icon={PiListChecksDuotone}
+                />
+                <Card>
+                    <CardContent className="py-12 text-center">
+                        <div className="text-muted-foreground">Loading project forms...</div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+    
+    // Show error state if project doesn't exist after forms are loaded
+    if (!projectExists) {
+        return (
+            <div className="space-y-6">
+                <PageHeader
+                    title="Project Not Found"
+                    subtitle="The requested project could not be found."
+                    icon={PiListChecksDuotone}
+                />
+                <Card>
+                    <CardContent className="py-12 text-center">
+                        <div className="text-destructive text-xl mb-4">Project Not Found</div>
+                        <p className="text-muted-foreground mb-6">
+                            Could not load details for project ID '{projectId}'.
+                        </p>
+                        <Button onClick={() => navigate('/')}>
+                            Back to Dashboard
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+    
+
+    
+    // The available forms are now the V2 project forms, converted for submission
+    const availableFormsForSubmission: FormDefinition[] = React.useMemo(() => {
+        const crestForms = projectForms.filter(f => f.projectId === projectId);
+        
+        if (crestForms.length === 0) {
+            return [];
+        }
+        
+        const converted = convertFormsToSubmissionFormat(crestForms);
+        return converted;
+    }, [projectForms, projectId]);
 
     // Get the current form definition, which includes the schema and uiSchema
     const currentFormDef = (currentFormIndex >= 0 && currentFormIndex < formSequence.length)
@@ -81,7 +145,11 @@ const EncounterPage: React.FC = () => {
 
     const handleStart = () => {
         if (patientData?.initials && patientData?.gender && patientData?.dob && patientData.projectConsent) {
-            startNewEncounter(patientData, formSequence);
+            if (availableFormsForSubmission.length === 0) {
+                alert("No forms available for this project. Please create forms in the Form Builder first.");
+                return;
+            }
+            startNewEncounter(patientData, availableFormsForSubmission);
         } else {
             alert("Please fill all required patient fields and provide consent.");
         }
@@ -105,7 +173,6 @@ const EncounterPage: React.FC = () => {
             saveCurrentForm(currentFormDef.key, currentStepFormData);
         }
         alert('Submitting all data to the backend (see console).');
-        console.log({ patientData, allFormsData: useSubmissionStore.getState().allFormsData });
         completeAndClearEncounter();
         
         navigate(`/project/${projectId}/submissions`);
@@ -136,14 +203,15 @@ const EncounterPage: React.FC = () => {
         
         return (
             <Card>
-                <CardHeader><CardTitle>{currentFormDef.name}</CardTitle></CardHeader>
+                <CardHeader>
+                    <CardTitle>{currentFormDef.name}</CardTitle>
+                </CardHeader>
                 <CardContent>
                     <DynamicFormRenderer
                         schema={currentFormDef.schema}
                         uiSchema={currentFormDef.uiSchema}
                         formData={currentStepFormData}
                         onFormDataChange={setCurrentStepFormData}
-                        fieldOrder={currentFormDef.uiSchema['ui:root']?.['ui:order']}
                     />
                 </CardContent>
                 <CardFooter className="justify-between">
@@ -202,6 +270,7 @@ const EncounterPage: React.FC = () => {
                 subtitle="Collect and submit clinical research data for your active project."
                 icon={PiListChecksDuotone}
             />
+            
             {isEncounterActive && <SubmissionStepper />}
             {renderContent()}
             <DraftStatusBar />

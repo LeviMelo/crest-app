@@ -176,6 +176,8 @@ const FieldRenderer: React.FC<{
       return {
         '--field-color': color,
         '--field-color-light': `${color}1a`, // For background
+        '--field-color-text': color, // For text color
+        '--field-color-border': color, // For border color
       };
     };
 
@@ -239,15 +241,15 @@ const FieldRenderer: React.FC<{
       }
       // Default to plain text input
       return (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {showLabel && (
-            <>
+            <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className={cn("font-medium", labelClasses)}>{field.label}</label>
                 <RequiredBadge />
               </div>
-              {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
-            </>
+              {field.description && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+            </div>
           )}
           <Input 
             type="text" 
@@ -259,15 +261,15 @@ const FieldRenderer: React.FC<{
       );
     case 'date':
       return (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {showLabel && (
-            <>
+            <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className={cn("font-medium", labelClasses)}>{field.label}</label>
                 <RequiredBadge />
               </div>
-              {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
-            </>
+              {field.description && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+            </div>
           )}
           <Input type="date" value={rawValue || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleValueChange(e.target.value)} />
         </div>
@@ -281,20 +283,20 @@ const FieldRenderer: React.FC<{
       const max = maxRule ? Number(maxRule.value) : undefined;
 
       return (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {showLabel && (
-            <>
+            <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className={cn("font-medium", labelClasses)}>{field.label}</label>
                 <RequiredBadge />
               </div>
-              {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
-            </>
+              {field.description && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+            </div>
           )}
           
           <div className="space-y-3 pt-2">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              {enabledInputs.includes('input') && (
+              {(enabledInputs.includes('input') || enabledInputs.includes('inputBox')) && (
                 <div className="relative w-full sm:w-40">
                   <Input
                     type="number"
@@ -478,7 +480,7 @@ const FieldRenderer: React.FC<{
                         'h-auto min-h-[40px] py-1 px-3', // Allow height to adjust
                         isSelected
                           ? 'bg-[var(--field-color)] text-white hover:opacity-90 border-transparent'
-                          : 'border-[var(--field-color)] text-[var(--field-color)] hover:bg-[var(--field-color-light)]',
+                          : 'border-[var(--field-color)] text-[var(--field-color)] hover:bg-[var(--field-color-light)] bg-background/80 backdrop-blur-sm shadow-sm',
                         field.styling.textOverflow === 'wrap' 
                           ? 'whitespace-normal' 
                           : 'truncate'
@@ -495,17 +497,17 @@ const FieldRenderer: React.FC<{
         }
         // Default to Dropdown
         return (
-          <div>
+          <div className="space-y-2">
             {showLabel && (
-              <>
-                <div className="flex items-center justify-between mb-1">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
                   <label htmlFor={`preview-${field.id}`} className={cn("font-medium", labelClasses)}>
                     {field.label}
                   </label>
                   <RequiredBadge />
                 </div>
-                {field.description && <p className={cn("text-muted-foreground -mt-1", descriptionClasses)}>{field.description}</p>}
-              </>
+                {field.description && <p className={cn("text-muted-foreground", descriptionClasses)}>{field.description}</p>}
+              </div>
             )}
             <Select 
               onValueChange={handleValueChange} 
@@ -593,7 +595,7 @@ const FieldRenderer: React.FC<{
                       'h-auto min-h-[40px] py-1 px-3', // Allow height to adjust
                       isSelected
                         ? 'bg-[var(--field-color)] text-white hover:opacity-90 border-transparent'
-                        : 'border-[var(--field-color)] text-[var(--field-color)] hover:bg-[var(--field-color-light)]',
+                        : 'border-[var(--field-color)] text-[var(--field-color)] hover:bg-[var(--field-color-light)] bg-background/80 backdrop-blur-sm shadow-sm',
                       field.styling.textOverflow === 'wrap' 
                         ? 'whitespace-normal' 
                         : 'truncate'

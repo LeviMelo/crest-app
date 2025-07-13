@@ -2,6 +2,7 @@
 // New simplified form builder store based on the specification
 import { create } from 'zustand';
 import { produce } from 'immer';
+import { preAnestesiaForm, intraoperatoriaForm, recuperacaoPosAnestesicaForm } from '@/data/forms';
 
 // Simplified data model from specification
 export type FieldType = 
@@ -116,7 +117,7 @@ export interface FormBuilderState {
 // Actions interface
 export interface FormBuilderActions {
   // Form management
-  createNewForm: (projectId: string) => void;
+  createNewForm: (projectId: string, template?: Omit<Form, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>) => void;
   loadForm: (formId: string) => void;
   saveForm: () => Promise<void>;
   deleteForm: (formId: string) => void;
@@ -173,7 +174,7 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
     case 'text':
       return { ...base, defaultValue: '', options: { ...base.options, variant: 'text', placeholder: '' } };
     case 'number':
-      return { ...base, options: { ...base.options, unit: '', enabledInputs: ['input'] }, defaultValue: { toggled: false, value: 0 } };
+      return { ...base, options: { ...base.options, unit: '', enabledInputs: ['inputBox'] }, defaultValue: { toggled: false, value: 0 } };
     case 'boolean':
       return { ...base, options: { ...base.options, displayAs: 'checkbox' }, defaultValue: false };
     case 'single-choice':
@@ -184,7 +185,7 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
             { value: 'option_1', label: 'Option 1' },
             { value: 'option_2', label: 'Option 2' }
           ],
-          displayAs: 'radio',
+          displayAs: 'button-group',
           layout: { style: 'auto' },
           togglable: false,
           textFallback: false
@@ -199,7 +200,7 @@ const createDefaultField = (type: FieldType, label: string): Omit<Field, 'id'> =
             { value: 'option_1', label: 'Option 1' },
             { value: 'option_2', label: 'Option 2' }
           ],
-          displayAs: 'checkboxGroup',
+          displayAs: 'button-group',
           layout: { style: 'auto' },
           togglable: false,
           textFallback: false
@@ -218,13 +219,42 @@ const generateId = (prefix: string): string => {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
+// Create default forms for CREST project
+const createDefaultProjectForms = (): Form[] => {
+  const forms = [
+    {
+      ...preAnestesiaForm,
+      id: generateId('form'),
+      projectId: 'proj_crest_001',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      ...intraoperatoriaForm,
+      id: generateId('form'),
+      projectId: 'proj_crest_001',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      ...recuperacaoPosAnestesicaForm,
+      id: generateId('form'),
+      projectId: 'proj_crest_001',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  ];
+  
+  return forms;
+};
+
 // Initial state
 const initialState: FormBuilderState = {
   currentForm: null,
   selectedFieldId: null,
   draggedFieldId: null,
   previewMode: false,
-  projectForms: [],
+  projectForms: createDefaultProjectForms(), // Initialize with CREST forms
   isLoading: false,
   isSaving: false,
   errors: []
@@ -235,8 +265,14 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
   ...initialState,
 
   // Form management
-  createNewForm: (projectId: string) => {
-    const newForm: Form = {
+  createNewForm: (projectId: string, template?: Omit<Form, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>) => {
+    const newForm: Form = template ? {
+      ...template,
+      id: generateId('form'),
+      projectId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } : {
       id: generateId('form'),
       projectId,
       name: 'Untitled Form',
@@ -259,6 +295,8 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
   loadForm: (formId: string) => {
     set(produce((state: FormBuilderState) => {
       state.isLoading = true;
+      // Clear any existing load errors
+      state.errors = state.errors.filter(e => e.type !== 'load');
     }));
 
     // Simulate async loading
@@ -270,16 +308,23 @@ export const useFormBuilderStoreV2 = create<FormBuilderState & FormBuilderAction
           state.selectedFieldId = null;
           state.previewMode = false;
           state.isLoading = false;
-          state.errors = [];
+          // Keep non-load errors, clear load errors
+          state.errors = state.errors.filter(e => e.type !== 'load');
         }));
       } else {
         set(produce((state: FormBuilderState) => {
           state.isLoading = false;
-          state.errors.push({
-            id: generateId('error'),
-            type: 'load',
-            message: `Form with ID ${formId} not found`
-          });
+          // Only add error if it doesn't already exist
+          const errorExists = state.errors.some(e => 
+            e.type === 'load' && e.message.includes(formId)
+          );
+          if (!errorExists) {
+            state.errors.push({
+              id: generateId('error'),
+              type: 'load',
+              message: `Form with ID ${formId} not found`
+            });
+          }
         }));
       }
     }, 100);

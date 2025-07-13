@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { useNavigate, useParams } from 'react-router-dom'; // + Import hooks
 import PatientRegistrationModal from '@/components/forms/PatientRegistrationModal';
 import { useSubmissionStore } from '@/stores/submissionStore';
-import { mockProjectForms, SavedForm } from '@/data/mockForms';
+import { useFormBuilderStoreV2 } from '@/stores/formBuilderStore.v2';
+import { convertFormsToSubmissionFormat } from '@/data/forms/formConverter';
 import { FormDefinition } from '@/stores/submissionStore';
 
 const DataSubmissionsHubPage: React.FC = () => {
@@ -15,6 +16,7 @@ const DataSubmissionsHubPage: React.FC = () => {
     const { projectId } = useParams(); // + Get projectId from URL
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { startNewEncounter, patientData } = useSubmissionStore();
+    const { projectForms } = useFormBuilderStoreV2();
 
     // In the future, this will fetch a list of encounters from a store
     const mockEncounters = [
@@ -28,18 +30,20 @@ const DataSubmissionsHubPage: React.FC = () => {
     };
     
     const handleStartEncounter = () => {
-        if (patientData) {
-             const projectForms = mockProjectForms.filter(f => f.projectId === projectId);
-             const formSequence: FormDefinition[] = projectForms.map((f: SavedForm) => ({
-                key: f.id,
-                name: f.name,
-                version: '1.0', // placeholder
-                schema: f.schema,
-                uiSchema: f.uiSchema
-             }));
-            startNewEncounter(patientData, formSequence);
-            navigate(`/project/${projectId}/submissions/new`);
+        if (!patientData) return;
+
+        // Grab forms belonging to this project from the V2 store
+        const formsForProject = projectForms.filter(f => f.projectId === projectId);
+
+        if (formsForProject.length === 0) {
+            alert('No forms found for this project. Please create forms in the Form Builder first.');
+            return;
         }
+
+        const formSequence: FormDefinition[] = convertFormsToSubmissionFormat(formsForProject);
+
+        startNewEncounter(patientData, formSequence);
+        navigate(`/project/${projectId}/submissions/new`);
     };
 
     const handleResume = (encounterId: string) => {

@@ -1,173 +1,205 @@
 // src/pages/project/ProjectFormBuilderPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import Toolbox from '@/components/form-builder/Toolbox';
-import Canvas from '@/components/form-builder/Canvas';
-import Inspector from '@/components/form-builder/Inspector';
-import JsonEditor from '@/components/form-builder/JsonEditor';
+import ToolboxV2 from '@/components/form-builder-v2/ToolboxV2';
+import CanvasV2 from '@/components/form-builder-v2/CanvasV2';
+import InspectorV2 from '@/components/form-builder-v2/InspectorV2';
+import TemplateSelector from '@/components/form-builder-v2/TemplateSelector';
 import { Button } from '@/components/ui/Button';
-import { useFormBuilderStore } from '@/stores/formBuilderStore';
-import { PiSquaresFourDuotone, PiFloppyDiskDuotone, PiPlus, PiWrench, PiCode, PiEye } from 'react-icons/pi';
+import { useFormBuilderStoreV2, Form } from '@/stores/formBuilderStore.v2';
+import { PiSquaresFourDuotone, PiFloppyDiskDuotone, PiPlus, PiCode } from 'react-icons/pi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { cn } from '@/lib/utils';
-import { mockProjectForms } from '@/data/mockForms'; // Import the mock forms
+import { InputField } from '@/components/ui/InputField';
+import { TextareaField } from '@/components/ui/TextareaField';
+import JsonEditor from '@/components/form-builder/JsonEditor';
+import { AnimatePresence, motion } from 'framer-motion';
 
-type MobileTab = 'toolbox' | 'canvas' | 'inspector';
+type MobileTab = 'canvas' | 'inspector';
 
 const ProjectFormBuilderPage: React.FC = () => {
-    const { schema, uiSchema, setRawSchema, setRawUiSchema, loadForm } = useFormBuilderStore();
-    const [activeTab, setActiveTab] = useState<MobileTab>('canvas');
-    const [activeFormId, setActiveFormId] = useState<string>(mockProjectForms[0]?.id || '');
-    const [isCodeDrawerOpen, setIsCodeDrawerOpen] = useState(false);
+  const { 
+    currentForm, 
+    createNewForm, 
+    loadForm, 
+    saveForm, 
+    updateFormMetadata, 
+    isSaving,
+    errors,
+    setRawForm,
+    clearErrors
+  } = useFormBuilderStoreV2();
+  
+  const [isFormSettingsOpen, setIsFormSettingsOpen] = useState(false);
+  const [isJsonEditorOpen, setIsJsonEditorOpen] = useState(false);
+  const [jsonString, setJsonString] = useState("");
 
-    // Set the initial form on first load
-    React.useEffect(() => {
-        const initialForm = mockProjectForms.find(f => f.id === activeFormId);
-        if (initialForm) {
-            loadForm({ schema: initialForm.schema, uiSchema: initialForm.uiSchema });
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Run only once
+  // When the current form from the store changes, update the JSON editor
+  useEffect(() => {
+    if (currentForm) {
+      setJsonString(JSON.stringify(currentForm, null, 2));
+    } else {
+      // Clear the editor if no form is loaded
+      setJsonString("");
+    }
+  }, [currentForm]);
 
-    const handleFormSelect = (formId: string) => {
-        const formToLoad = mockProjectForms.find(f => f.id === formId);
-        if (formToLoad) {
-            setActiveFormId(formId);
-            loadForm({ schema: formToLoad.schema, uiSchema: formToLoad.uiSchema });
-        }
-    };
-    
-    const schemaString = JSON.stringify(schema, null, 2);
-    const uiSchemaString = JSON.stringify(uiSchema, null, 2);
+  const handleCreateNew = () => {
+    createNewForm('proj_crest_001');
+    clearErrors();
+  };
 
-    const tabs = [
-        { id: 'toolbox' as MobileTab, label: 'Tools', icon: PiWrench },
-        { id: 'canvas' as MobileTab, label: 'Canvas', icon: PiEye },
-        { id: 'inspector' as MobileTab, label: 'Inspector', icon: PiSquaresFourDuotone },
-    ];
-    
-    const formsList = (
-        <Card>
-            <CardHeader>
-                <CardTitle>Project Forms</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-                {mockProjectForms.map(form => (
-                     <div 
-                        key={form.id}
-                        onClick={() => handleFormSelect(form.id)}
-                        className={cn(
-                            "p-3 rounded-lg text-sm font-semibold cursor-pointer transition-colors",
-                            activeFormId === form.id 
-                                ? "bg-accent border border-primary" 
-                                : "hover:bg-accent"
-                        )}
-                     >
-                        {form.name}
-                    </div>
-                ))}
-                <Button variant="outline" className="w-full mt-4">
-                    <PiPlus className="mr-2" />
-                    Create New Form
-                </Button>
-            </CardContent>
-        </Card>
-    );
+  const handleSave = async () => {
+    try {
+      await saveForm();
+    } catch (error) {
+      console.error('Failed to save form:', error);
+    }
+  };
 
-    return (
-        <div className="space-y-6 flex flex-col min-h-0">
-            <PageHeader
-                title="Form Builder"
-                subtitle="Design and configure your dynamic data collection forms for this project."
-                icon={PiSquaresFourDuotone}
-            >
-                <Button variant="gradient">
-                    <PiFloppyDiskDuotone className="mr-2" />
-                    Save Form
-                </Button>
-                <Button variant="outline" onClick={() => setIsCodeDrawerOpen(!isCodeDrawerOpen)}>
-                    <PiCode className="mr-2" />
-                    {isCodeDrawerOpen ? 'Hide' : 'Show'} Code
-                </Button>
-            </PageHeader>
+  const handleApplyJson = () => {
+    if (setRawForm(jsonString)) {
+      // setIsJsonEditorOpen(false);
+    }
+  };
+  
+  const handleResetJson = () => {
+    if (currentForm) {
+      setJsonString(JSON.stringify(currentForm, null, 2));
+    }
+  };
 
-            {/* Mobile Tabs (shown on mobile and tablet) */}
-            <div className="lg:hidden">
-                <div className="flex space-x-1 bg-muted p-1 rounded-lg mb-4">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={cn(
-                                "flex-1 flex flex-col items-center gap-1 py-2 px-3 rounded-md text-xs font-medium transition-colors",
-                                activeTab === tab.id
-                                    ? "bg-background text-primary shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            <tab.icon className="h-4 w-4" />
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Mobile Tab Content */}
-                <div className="min-h-[60vh]">
-                    {activeTab === 'toolbox' && (
-                        <div className="space-y-4">
-                            <Toolbox />
-                            {formsList}
-                        </div>
-                    )}
-                    {activeTab === 'canvas' && <Canvas />}
-                    {activeTab === 'inspector' && <Inspector />}
-                </div>
-            </div>
-
-            {/* Desktop Layout (hidden on mobile) */}
-            <div className="hidden lg:flex flex-col flex-grow min-h-0">
-                {/* Main Builder UI with Responsive Layout */}
-                <div className="grid grid-cols-12 gap-6 flex-grow min-h-0">
-                    {/* Left Panel: Forms List + Toolbox */}
-                    <div className="col-span-3 flex flex-col gap-6 h-full min-h-0">
-                        <div className="flex-shrink-0">
-                            {formsList}
-                        </div>
-                        <div className="flex-grow min-h-0">
-                            <Toolbox />
-                        </div>
-                    </div>
-
-                    {/* Center Panel: Canvas */}
-                    <div className="col-span-6 h-full min-h-0">
-                        <Canvas />
-                    </div>
-
-                    {/* Right Panel: Inspector */}
-                    <div className="col-span-3 h-full min-h-0">
-                        <Inspector />
-                    </div>
-                </div>
-            </div>
-
-             {/* JSON Editors (Collapsible Drawer for all screen sizes) */}
-             <div className={cn(
-                "mt-6 transition-all duration-500 ease-in-out overflow-hidden",
-                isCodeDrawerOpen ? "max-h-[1000px] opacity-100 py-4" : "max-h-0 opacity-0"
-             )}>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <Card className="min-h-[400px]">
-                        <CardHeader><CardTitle>Data Schema (schema.json)</CardTitle></CardHeader>
-                        <CardContent><JsonEditor jsonString={schemaString} onJsonChange={setRawSchema} /></CardContent>
-                    </Card>
-                    <Card className="min-h-[400px]">
-                        <CardHeader><CardTitle>UI Schema (uiSchema.json)</CardTitle></CardHeader>
-                        <CardContent><JsonEditor jsonString={uiSchemaString} onJsonChange={setRawUiSchema} /></CardContent>
-                    </Card>
-                </div>
-            </div>
+  return (
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="Form Builder"
+        subtitle={currentForm ? currentForm.name : 'Select a form to edit, or create a new one.'}
+        icon={PiSquaresFourDuotone}
+      >
+        <div className="flex items-center gap-2">
+          <Button onClick={handleCreateNew} variant="outline" size="sm">
+            <PiPlus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">New Blank Form</span>
+          </Button>
+          <TemplateSelector />
+          <div className="w-px h-6 bg-border mx-2" />
+          <Button 
+            variant="outline" 
+            onClick={() => setIsFormSettingsOpen(!isFormSettingsOpen)}
+            size="sm"
+            className="hidden sm:flex"
+            disabled={!currentForm}
+          >
+            Settings
+          </Button>
+          <Button variant="outline" onClick={() => setIsJsonEditorOpen(!isJsonEditorOpen)} disabled={!currentForm}>
+            <PiCode className="mr-2" />
+            JSON
+          </Button>
+          <Button onClick={handleSave} disabled={isSaving || !currentForm}>
+            <PiFloppyDiskDuotone className="mr-2" />
+            {isSaving ? 'Saving...' : 'Save'}
+          </Button>
         </div>
-    );
+      </PageHeader>
+
+      {/* Error Display */}
+      {errors.length > 0 && (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 sm:p-4">
+          <h4 className="font-medium text-destructive mb-2">
+            <span className="hidden sm:inline">Form Builder Errors</span>
+            <span className="sm:hidden">Errors</span>
+          </h4>
+          <ul className="text-sm text-destructive space-y-1">
+            {errors.map((error) => (
+              <li key={error.id}>• {error.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Form Settings Card (Collapsible) */}
+      {isFormSettingsOpen && currentForm && (
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-lg sm:text-xl">
+              <span className="hidden sm:inline">Form Settings</span>
+              <span className="sm:hidden">Settings</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <InputField
+                id="form-name"
+                label="Form Name"
+                value={currentForm.name}
+                onChange={(e) => updateFormMetadata({ name: e.target.value })}
+              />
+              <div className="lg:col-span-2">
+                <TextareaField
+                  id="form-description"
+                  label="Description"
+                  value={currentForm.description}
+                  onChange={(e) => updateFormMetadata({ description: e.target.value })}
+                  rows={2}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Main Builder UI */}
+      <div className="grid grid-cols-12 gap-x-6 px-6 pb-6 flex-grow items-start min-h-0">
+        
+        {/* Left Column: Toolbox + Canvas */}
+        <div className="col-span-12 lg:col-span-8 xl:col-span-9 h-full flex flex-col gap-6">
+          <div className="sticky top-[calc(var(--header-height)+1.5rem)] z-20 -mx-6 px-6">
+            <ToolboxV2 />
+          </div>
+          <div className="flex-grow min-h-0">
+             <CanvasV2 />
+          </div>
+        </div>
+        
+        {/* Right Column: Inspector */}
+        <div className="hidden lg:block lg:col-span-4 xl:col-span-3 h-full">
+          <div className="sticky top-[calc(var(--header-height)+1.5rem)] z-10 h-[calc(100vh-var(--header-height)-3rem)] overflow-y-auto">
+            <InspectorV2 />
+          </div>
+        </div>
+
+      </div>
+
+      <AnimatePresence>
+      {isJsonEditorOpen && currentForm && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex-shrink-0 overflow-hidden"
+        >
+          <div className="mt-6 border-t pt-4 px-6 pb-6">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold">Live JSON Editor</h3>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={handleResetJson}>Reset</Button>
+                <Button size="sm" onClick={handleApplyJson}>Apply JSON</Button>
+              </div>
+            </div>
+            <div className="h-96">
+              <JsonEditor
+                jsonString={jsonString}
+                onJsonChange={setJsonString}
+                readOnly={false}
+              />
+            </div>
+          </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+    </div>
+  );
 };
 
 export default ProjectFormBuilderPage;
