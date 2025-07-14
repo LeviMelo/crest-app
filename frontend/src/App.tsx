@@ -38,9 +38,6 @@ function App() {
           <Route element={<SidebarLayout />}>
             <Route path="/project/:projectId/overview" element={<ProjectOverviewPage />} />
             <Route path="/project/:projectId/submissions" element={<DataSubmissionsHubPage />} />
-            {/* + ADD ROUTE FOR A NEW ENCOUNTER */}
-            <Route path="/project/:projectId/submissions/new" element={<EncounterPage />} />
-            {/* + ADD ROUTE FOR AN EXISTING ENCOUNTER */}
             <Route path="/project/:projectId/submissions/:encounterId" element={<EncounterPage />} />
             <Route path="/project/:projectId/builder" element={<ProjectFormBuilderPage />} />
             <Route path="/project/:projectId/members" element={<MembersAndRolesPage />} />

@@ -1,5 +1,5 @@
 // src/pages/project/DataSubmissionsHubPage.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '@/stores/authStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -18,31 +18,13 @@ import {
     PiUserFocusDuotone
 } from 'react-icons/pi';
 import { cn } from '@/lib/utils';
+import { useEncounterStore, Encounter } from '@/stores/encounterStore';
+import { useSubmissionStore } from '@/stores/submissionStore';
+import { useFormBuilderStoreV2 } from '@/stores/formBuilderStore.v2';
+import { PatientInputData } from '@/types';
+import PatientRegistrationModal from '@/components/forms/PatientRegistrationModal';
 
-type EncounterStatus = 'In Progress' | 'Completed' | 'Flagged for Review';
-
-interface MockEncounter {
-    id: string;
-    patientId: string;
-    patientInfo: string; // e.g., 'JS / M / 2017-02-04'
-    status: EncounterStatus;
-    currentStep: number;
-    totalSteps: number;
-    currentStepName: string;
-    updated: string;
-    submittedBy: string; // userId
-}
-
-// More detailed mock data
-const mockEncounters: MockEncounter[] = [
-    { id: 'enc-001', patientId: 'p-xyz-123', patientInfo: 'JS / M / 2017-02-04', status: 'In Progress', currentStep: 2, totalSteps: 4, currentStepName: 'Intraoperatória', updated: '5m ago', submittedBy: 'userLead123' },
-    { id: 'enc-002', patientId: 'p-abc-456', patientInfo: 'AB / F / 2018-05-10', status: 'Completed', currentStep: 4, totalSteps: 4, currentStepName: 'N/A', updated: '2h ago', submittedBy: 'user456' },
-    { id: 'enc-003', patientId: 'p-def-789', patientInfo: 'CD / M / 2016-11-22', status: 'Flagged for Review', currentStep: 3, totalSteps: 4, currentStepName: 'Pós-operatório', updated: '1d ago', submittedBy: 'userLead123' },
-    { id: 'enc-004', patientId: 'p-ghi-101', patientInfo: 'EF / F / 2019-01-15', status: 'In Progress', currentStep: 1, totalSteps: 4, currentStepName: 'Pré-Anestésica', updated: '3d ago', submittedBy: 'user456' },
-];
-
-
-const EncounterStatusBadge: React.FC<{ status: EncounterStatus }> = ({ status }) => {
+const EncounterStatusBadge: React.FC<{ status: Encounter['status'] }> = ({ status }) => {
     let variant: 'default' | 'secondary' | 'destructive';
     let textStyle: string;
 
@@ -65,12 +47,16 @@ const EncounterStatusBadge: React.FC<{ status: EncounterStatus }> = ({ status })
     return <Badge variant={variant} className={cn('font-bold', textStyle)}>{status}</Badge>;
 };
 
-
 const DataSubmissionsHubPage: React.FC = () => {
     const navigate = useNavigate();
     const { projectId } = useParams<{ projectId: string }>();
     const { user } = useAuthStore();
     const { activeProjectDetails } = useProjectStore();
+    const { getEncountersByProject } = useEncounterStore();
+    const { loadEncounter } = useSubmissionStore();
+    const { projectForms } = useFormBuilderStoreV2();
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
     
     // --- Role-based Logic ---
     const userRoles = activeProjectDetails?.members.find(m => m.userId === user?.id)?.roles || [];
@@ -79,17 +65,15 @@ const DataSubmissionsHubPage: React.FC = () => {
                       : userRoles.includes('DataEntry') ? 'DataEntry' 
                       : 'Unknown';
     
-    // Mocking a "Blinded" role for demonstration
     const isBlinded = primaryRole === 'Researcher' && user?.id === 'blindedUser456';
 
     const getVisibleEncounters = () => {
-        if (primaryRole === 'ProjectLead') {
-            return mockEncounters;
+        const projectEncounters = getEncountersByProject(projectId || '');
+        if (primaryRole === 'ProjectLead' || isBlinded) {
+            return projectEncounters;
         }
-        if (isBlinded) {
-            return mockEncounters; // Show all, but data will be masked
-        }
-        return mockEncounters.filter(enc => enc.submittedBy === user?.id);
+        // Data Entry and Researchers see only their own encounters
+        return projectEncounters.filter(enc => enc.submittedById === user?.id);
     };
 
     const visibleEncounters = getVisibleEncounters();
@@ -101,25 +85,64 @@ const DataSubmissionsHubPage: React.FC = () => {
     };
 
     const handleStartNew = () => {
-        navigate(`/project/${projectId}/submissions/new`);
-    }
+        setIsModalOpen(true);
+    };
+
+    const handleStartEncounter = (patientData: PatientInputData) => {
+        if (!projectId || !user) return;
+
+        const formsForProject = projectForms.filter(f => f.projectId === projectId);
+        if (formsForProject.length === 0) {
+            alert("This project has no forms. Please create them in the Form Builder.");
+            return;
+        }
+
+        const newEncounter: Encounter = {
+            id: `enc_${Date.now()}`,
+            projectId,
+            submittedById: user.id,
+            patientData,
+            status: 'In Progress',
+            formSequence: formsForProject,
+            currentFormIndex: 1, // START on the first form, not patient info
+            allFormsData: {},
+            lastUpdateTimestamp: Date.now(),
+            createdAt: Date.now(),
+        };
+
+        useEncounterStore.getState().addEncounter(newEncounter);
+        loadEncounter(newEncounter);
+        navigate(`/project/${projectId}/submissions/${newEncounter.id}`);
+    };
     
     const handleResume = (encounterId: string) => {
-        navigate(`/project/${projectId}/submissions/${encounterId}`);
-    }
+        const encounter = useEncounterStore.getState().getEncounterById(encounterId);
+        if (encounter) {
+            loadEncounter(encounter);
+            navigate(`/project/${projectId}/submissions/${encounterId}`);
+        }
+    };
 
-    const renderPatientInfo = (encounter: MockEncounter) => {
+    const renderPatientInfo = (encounter: Encounter) => {
         if (isBlinded) {
             return (
                 <div>
-                    <p className="font-medium">Patient #{encounter.patientId.slice(-6)}</p>
+                    <p className="font-medium">Patient #{encounter.id.slice(-6)}</p>
                     <p className="text-xs text-muted-foreground">[Anonymized]</p>
                 </div>
             );
         }
+        if (!encounter.patientData) {
+            return (
+                 <div>
+                    <p className="font-medium text-destructive">Patient Data Missing</p>
+                    <p className="text-xs text-muted-foreground">ID: {encounter.id}</p>
+                </div>
+            )
+        }
         return (
             <div>
-                <p className="font-medium">{encounter.patientInfo}</p>
+                <p className="font-medium">{encounter.patientData.initials} / {encounter.patientData.gender} / {encounter.patientData.dob}</p>
                 <p className="text-xs text-muted-foreground">ID: {encounter.id}</p>
             </div>
         );
@@ -146,10 +169,10 @@ const DataSubmissionsHubPage: React.FC = () => {
             
             {/* Summary Widgets */}
             <div className="grid gap-6 md:grid-cols-3">
-                <InfoWidget title={primaryRole === 'ProjectLead' ? 'Active Encounters (All)' : 'My Active Encounters'} icon={PiHourglassSimpleDuotone}>
+                <InfoWidget title="Active Encounters" icon={PiHourglassSimpleDuotone}>
                     <div className="text-2xl font-bold">{summaryStats.active}</div>
                 </InfoWidget>
-                <InfoWidget title={primaryRole === 'ProjectLead' ? 'Completed Submissions (All)' : 'My Completed Submissions'} icon={PiCheckCircleDuotone}>
+                <InfoWidget title="Completed Submissions" icon={PiCheckCircleDuotone}>
                     <div className="text-2xl font-bold">{summaryStats.completed}</div>
                 </InfoWidget>
                 <InfoWidget title="Flagged for Review" icon={PiWarningCircleDuotone}>
@@ -167,9 +190,11 @@ const DataSubmissionsHubPage: React.FC = () => {
                             <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
                                 <tr>
                                     <th className="px-6 py-3">Patient</th>
+                                    {primaryRole === 'ProjectLead' && !isBlinded && (
+                                        <th className="px-6 py-3">Submitted By</th>
+                                    )}
                                     <th className="px-6 py-3">Status</th>
                                     <th className="px-6 py-3">Progress</th>
-                                    {primaryRole === 'ProjectLead' && !isBlinded && <th className="px-6 py-3">Submitted By</th>}
                                     <th className="px-6 py-3">Last Updated</th>
                                     <th className="px-6 py-3 text-right">Actions</th>
                                 </tr>
@@ -178,17 +203,29 @@ const DataSubmissionsHubPage: React.FC = () => {
                                 {visibleEncounters.map(enc => (
                                     <tr key={enc.id} className="border-b">
                                         <td className="px-6 py-4">{renderPatientInfo(enc)}</td>
+                                        {primaryRole === 'ProjectLead' && !isBlinded && (
+                                            <td className="px-6 py-4 text-xs">{enc.submittedById}</td>
+                                        )}
                                         <td className="px-6 py-4"><EncounterStatusBadge status={enc.status} /></td>
                                         <td className="px-6 py-4">
                                             <div className="w-40 space-y-1">
-                                                <p className="text-xs text-muted-foreground">
-                                                    Step {enc.currentStep} of {enc.totalSteps}: {enc.currentStepName}
-                                                </p>
-                                                <ProgressBar value={(enc.currentStep / enc.totalSteps) * 100} />
+                                                {enc.status === 'Completed' ? (
+                                                    <p className="text-xs text-muted-foreground">Completed</p>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Step {enc.currentFormIndex} of {enc.formSequence.length + 1}
+                                                    </p>
+                                                )}
+                                                <ProgressBar 
+                                                    value={
+                                                        enc.status === 'Completed' 
+                                                        ? 100 
+                                                        : (enc.currentFormIndex / (enc.formSequence.length + 1)) * 100
+                                                    } 
+                                                />
                                             </div>
                                         </td>
-                                        {primaryRole === 'ProjectLead' && !isBlinded && <td className="px-6 py-4">{enc.submittedBy}</td>}
-                                        <td className="px-6 py-4">{enc.updated}</td>
+                                        <td className="px-6 py-4">{new Date(enc.lastUpdateTimestamp).toLocaleString()}</td>
                                         <td className="px-6 py-4 text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleResume(enc.id)}>
                                                 {enc.status === 'In Progress' ? 'Resume' : 'View'}
@@ -208,9 +245,14 @@ const DataSubmissionsHubPage: React.FC = () => {
                     )}
                 </CardContent>
                 <CardFooter>
-                    <p className="text-xs text-muted-foreground">Showing {visibleEncounters.length} of {mockEncounters.length} total submissions.</p>
+                    <p className="text-xs text-muted-foreground">Showing {visibleEncounters.length} encounters.</p>
                 </CardFooter>
             </Card>
+             <PatientRegistrationModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onStartEncounter={handleStartEncounter}
+            />
         </div>
     );
 };

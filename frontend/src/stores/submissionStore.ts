@@ -1,29 +1,29 @@
 // src/stores/submissionStore.ts
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import { PatientInputData } from '@/types';
 import { Form } from './formBuilderStore.v2';
+import { Encounter, useEncounterStore } from './encounterStore';
 
-// The FormDefinition interface is no longer the source of truth for V2 forms.
-// We will now use the V2 `Form` type directly.
+// The FormDefinition type alias is kept for any components that might still reference it.
 export type { Form as FormDefinition };
 
-
 interface SubmissionState {
+  activeEncounterId: string | null;
   isEncounterActive: boolean;
   patientData: PatientInputData | null;
   formSequence: Form[];
-  currentFormIndex: number; // -1: patient input, 0 to n-1: forms, n: review
+  currentFormIndex: number; // 0: patient info, 1..n: forms, n+1: review
   allFormsData: { [formKey: string]: any };
   lastUpdateTimestamp: number | null;
 }
 
 interface SubmissionActions {
-  startNewEncounter: (patientData: PatientInputData, sequence: Form[]) => void;
-  saveCurrentForm: (formKey: string, data: any) => void;
-  setCurrentFormIndex: (index: number) => void;
+  loadEncounter: (encounter: Encounter) => void;
+  updateLocalFormState: (formKey: string, data: any) => void;
   updatePatientData: (patientData: Partial<PatientInputData>) => void;
-  completeAndClearEncounter: () => void;
+  setCurrentFormIndex: (index: number) => void;
+  unloadEncounter: (status?: Encounter['status']) => void;
+  clearStore: () => void;
 }
 
 const initialPatientState: PatientInputData = {
@@ -34,6 +34,7 @@ const initialPatientState: PatientInputData = {
 }
 
 const initialState: SubmissionState = {
+  activeEncounterId: null,
   isEncounterActive: false,
   patientData: initialPatientState,
   formSequence: [],
@@ -42,45 +43,59 @@ const initialState: SubmissionState = {
   lastUpdateTimestamp: null,
 };
 
-export const useSubmissionStore = create<SubmissionState & SubmissionActions>()(
-  persist(
-    (set, get) => ({
-      ...initialState,
-      startNewEncounter: (patientData, sequence) => {
+// NO LONGER PERSISTED. This is a temporary session store.
+export const useSubmissionStore = create<SubmissionState & SubmissionActions>()((set, get) => ({
+    ...initialState,
+    
+    loadEncounter: (encounter) => {
         set({
-          isEncounterActive: true,
-          patientData,
-          formSequence: sequence,
-          currentFormIndex: 0,
-          allFormsData: {},
-          lastUpdateTimestamp: Date.now(),
+            activeEncounterId: encounter.id,
+            isEncounterActive: true,
+            patientData: encounter.patientData,
+            formSequence: encounter.formSequence,
+            currentFormIndex: encounter.currentFormIndex,
+            allFormsData: encounter.allFormsData,
+            lastUpdateTimestamp: encounter.lastUpdateTimestamp,
         });
-      },
-      saveCurrentForm: (formKey, data) => {
+    },
+
+    updateLocalFormState: (formKey, data) => {
         set(state => ({
           allFormsData: { ...state.allFormsData, [formKey]: data },
           lastUpdateTimestamp: Date.now(),
         }));
-      },
-      setCurrentFormIndex: (index) => {
-        const sequenceLength = get().formSequence.length;
-        if (index >= -1 && index <= sequenceLength) {
-          set({ currentFormIndex: index, lastUpdateTimestamp: Date.now() });
-        }
-      },
-      updatePatientData: (updatedPatientData) => {
+    },
+
+    updatePatientData: (patientData) => {
         set(state => ({
-            patientData: { ...state.patientData!, ...updatedPatientData },
-            lastUpdateTimestamp: Date.now(), // This was the only necessary change.
+            patientData: { ...state.patientData!, ...patientData },
+            lastUpdateTimestamp: Date.now(),
         }));
-      },
-      completeAndClearEncounter: () => {
-        set({ ...initialState, patientData: initialPatientState });
-      },
-    }),
-    {
-      name: 'crest-submission-storage',
-      storage: createJSONStorage(() => localStorage),
+    },
+
+    setCurrentFormIndex: (index) => {
+        const sequenceLength = get().formSequence.length;
+        // FIX: Allow navigating to the review step, which is at index `sequenceLength + 1`
+        if (index >= 0 && index <= sequenceLength + 1) {
+            set({ currentFormIndex: index, lastUpdateTimestamp: Date.now() });
+        }
+    },
+    
+    unloadEncounter: (status = 'In Progress') => {
+        const { activeEncounterId, patientData, formSequence, currentFormIndex, allFormsData } = get();
+        if (activeEncounterId) {
+            useEncounterStore.getState().updateEncounter(activeEncounterId, {
+                patientData,
+                formSequence,
+                currentFormIndex,
+                allFormsData,
+                status,
+            });
+        }
+        set(initialState);
+    },
+
+    clearStore: () => {
+        set(initialState);
     }
-  )
-);
+}));
