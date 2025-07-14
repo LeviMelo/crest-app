@@ -1,6 +1,4 @@
 // src/pages/project/EncounterPage.tsx
-// This file contains the complete, working logic from the original DataSubmissionPage.
-
 import React, { useState, useEffect } from 'react';
 import { useSubmissionStore } from '@/stores/submissionStore';
 import { useFormBuilderStoreV2 } from '@/stores/formBuilderStore.v2';
@@ -10,50 +8,83 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { InputField } from '@/components/ui/InputField';
 import DraftStatusBar from '@/components/forms/DraftStatusBar';
 import FormRendererV2 from '@/components/forms/FormRendererV2';
-import { PiListChecksDuotone, PiArrowLeft, PiArrowRight, PiPaperPlaneTilt } from 'react-icons/pi';
+import { PiListChecksDuotone, PiArrowLeft, PiArrowRight, PiPaperPlaneTilt, PiCheck } from 'react-icons/pi';
 import { cn } from '@/lib/utils';
 import { useNavigate, useParams } from 'react-router-dom';
 
-// This component will be used for the Stepper UI
-const SubmissionStepper: React.FC = () => {
-    const { currentFormIndex, formSequence } = useSubmissionStore();
+const SubmissionStepper: React.FC<{
+    onStepSelect: (index: number) => void;
+}> = ({ onStepSelect }) => {
+    const { formSequence, currentFormIndex } = useSubmissionStore();
     const steps = [
-        { key: 'patient', label: 'Patient Info' },
-        ...formSequence.map(f => ({ key: f.id, label: f.name })),
-        { key: 'review', label: 'Review & Submit' }
+        { name: 'Patient Info', isComplete: currentFormIndex > -1 },
+        ...formSequence.map((form, idx) => ({ name: form.name, isComplete: currentFormIndex > idx + 1 })),
+        { name: 'Review & Submit', isComplete: false }, // Review step is never "complete" in this view
     ];
-    const activeIndex = currentFormIndex + 1;
+    const activeStep = currentFormIndex + 1;
 
     return (
-        <div className="mb-8 p-4 bg-muted/50 rounded-lg">
-            <ol className="flex items-center w-full">
-                {steps.map((step, index) => {
-                    const isCompleted = index < activeIndex;
-                    const isCurrent = index === activeIndex;
-                    return (
-                        <li key={step.key} className={cn(
-                            "flex w-full items-center",
-                            isCompleted ? 'text-primary' : 'text-muted-foreground',
-                            index < steps.length - 1 ? "after:content-[''] after:w-full after:h-0.5 after:border-b after:border-border after:mx-4" : ""
-                        )}>
-                            <span className={cn(
-                                "flex items-center justify-center w-8 h-8 rounded-full text-sm shrink-0",
-                                isCurrent ? 'bg-primary text-primary-foreground' : isCompleted ? 'bg-primary/20' : 'bg-muted'
-                            )}>
-                                {index + 1}
-                            </span>
+        <div className="w-full py-4 px-6 bg-card border rounded-lg shadow-sm">
+            <nav aria-label="Progress">
+                <ol
+                    role="list"
+                    className="grid items-start"
+                    style={{ gridTemplateColumns: `repeat(${steps.length}, 1fr)` }}
+                >
+                    {steps.map((step, stepIdx) => (
+                        <li key={step.name} className="relative">
+                            {/* Connector line: Drawn behind the circles, from the center of this step to the center of the next */}
+                            {stepIdx < steps.length - 1 && (
+                                <div className="absolute top-4 left-1/2 w-full h-0.5 bg-gray-200" aria-hidden="true">
+                                     {/* A second div for the 'completed' state highlight */}
+                                    {stepIdx < activeStep && <div className="h-full w-full bg-primary" />}
+                                </div>
+                            )}
+
+                            {/* Main step content: Circle and Label */}
+                            <div className="flex flex-col items-center gap-2 text-center">
+                                {/* Circle button */}
+                                {stepIdx < activeStep ? ( // Completed
+                                    <button
+                                        onClick={() => onStepSelect(stepIdx - 1)}
+                                        className="relative w-8 h-8 flex items-center justify-center bg-primary rounded-full hover:bg-primary-dark z-10"
+                                    >
+                                        <PiCheck className="w-5 h-5 text-white" />
+                                    </button>
+                                ) : stepIdx === activeStep ? ( // Current
+                                    <button
+                                        onClick={() => onStepSelect(stepIdx - 1)}
+                                        className="relative w-8 h-8 flex items-center justify-center bg-background border-2 border-primary rounded-full z-10"
+                                        aria-current="step"
+                                    >
+                                        <span className="h-2.5 w-2.5 bg-primary rounded-full" aria-hidden="true" />
+                                    </button>
+                                ) : ( // Upcoming
+                                    <button
+                                        onClick={() => onStepSelect(stepIdx - 1)}
+                                        className="group relative w-8 h-8 flex items-center justify-center bg-background border-2 border-gray-300 rounded-full hover:border-gray-400 z-10"
+                                    >
+                                        <span className="h-2.5 w-2.5 bg-transparent rounded-full group-hover:bg-gray-300" aria-hidden="true" />
+                                    </button>
+                                )}
+
+                                {/* Label */}
+                                <span className={cn(
+                                    "text-xs",
+                                    stepIdx === activeStep ? "text-primary font-semibold" : "text-muted-foreground"
+                                )}>{step.name}</span>
+                            </div>
                         </li>
-                    );
-                })}
-            </ol>
+                    ))}
+                </ol>
+            </nav>
         </div>
     );
 };
 
-// Renamed the component to EncounterPage
 const EncounterPage: React.FC = () => {
-    const navigate = useNavigate(); // Hook for navigation
-    const { projectId } = useParams();
+    const navigate = useNavigate();
+    const { projectId } = useParams<{ projectId: string }>();
     
     const { 
         patientData, 
@@ -72,68 +103,38 @@ const EncounterPage: React.FC = () => {
     
     const [currentStepFormData, setCurrentStepFormData] = useState({});
     
-    // Check if the project exists by seeing if we have any forms for this projectId
     const projectExists = projectForms.some(f => f.projectId === projectId);
     
-    // Show loading state if forms haven't loaded yet
-    if (projectForms.length === 0) {
+    if (projectForms.length === 0 && !projectExists) { // Initial load state
         return (
-            <div className="space-y-6">
+             <div className="space-y-6">
                 <PageHeader
-                    title="Loading..."
-                    subtitle="Loading project data..."
+                    title="Loading Encounter..."
+                    subtitle="Preparing data submission forms..."
                     icon={PiListChecksDuotone}
                 />
-                <Card>
-                    <CardContent className="py-12 text-center">
-                        <div className="text-muted-foreground">Loading project forms...</div>
-                    </CardContent>
-                </Card>
             </div>
-        );
+        )
     }
     
-    // Show error state if project doesn't exist after forms are loaded
-    if (!projectExists) {
-        return (
-            <div className="space-y-6">
-                <PageHeader
-                    title="Project Not Found"
-                    subtitle="The requested project could not be found."
-                    icon={PiListChecksDuotone}
-                />
-                <Card>
-                    <CardContent className="py-12 text-center">
-                        <div className="text-destructive text-xl mb-4">Project Not Found</div>
-                        <p className="text-muted-foreground mb-6">
-                            Could not load details for project ID '{projectId}'.
-                        </p>
-                        <Button onClick={() => navigate('/')}>
-                            Back to Dashboard
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-    
-
-    
-    // The available forms are now the V2 project forms, converted for submission
     const availableFormsForSubmission = React.useMemo(() => {
         return projectForms.filter(f => f.projectId === projectId);
     }, [projectForms, projectId]);
 
-    // Get the current form definition, which includes the schema and uiSchema
     const currentForm = (currentFormIndex >= 0 && currentFormIndex < formSequence.length)
         ? formSequence[currentFormIndex]
         : null;
 
     useEffect(() => {
-        if (isEncounterActive && currentForm) {
-            setCurrentStepFormData(allFormsData[currentForm.id] || {});
+        if (isEncounterActive) {
+            if (currentForm) {
+                setCurrentStepFormData(allFormsData[currentForm.id] || {});
+            } else {
+                 // Handles patient info and review steps
+                setCurrentStepFormData({});
+            }
         }
-    }, [currentForm, isEncounterActive, allFormsData]);
+    }, [currentForm, currentFormIndex, isEncounterActive, allFormsData]);
 
     const handleStart = () => {
         if (patientData?.initials && patientData?.gender && patientData?.dob && patientData.projectConsent) {
@@ -152,21 +153,30 @@ const EncounterPage: React.FC = () => {
         updatePatientData({ [id]: type === 'checkbox' ? checked : value });
     };
 
-    const handleNavigate = (direction: 'next' | 'previous') => {
+    const handleStepSelect = (index: number) => {
         if (currentForm) {
             saveCurrentForm(currentForm.id, currentStepFormData);
         }
-        setCurrentFormIndex(currentFormIndex + (direction === 'next' ? 1 : -1));
+        setCurrentFormIndex(index);
     };
     
+    const handleSaveAndExit = () => {
+        if (currentForm) {
+            saveCurrentForm(currentForm.id, currentStepFormData);
+        }
+        navigate(`/project/${projectId}/submissions`);
+    }
+
     const handleSubmitAndExit = () => {
-        // Save the final form state before submitting
         if (currentForm) {
             saveCurrentForm(currentForm.id, currentStepFormData);
         }
         alert('Submitting all data to the backend (see console).');
+        console.log({
+            patientData,
+            allFormsData
+        });
         completeAndClearEncounter();
-        
         navigate(`/project/${projectId}/submissions`);
     }
 
@@ -206,11 +216,11 @@ const EncounterPage: React.FC = () => {
                     />
                 </CardContent>
                 <CardFooter className="justify-between">
-                    <Button variant="outline" onClick={() => handleNavigate('previous')} disabled={currentFormIndex === 0}>
+                    <Button variant="outline" onClick={() => handleStepSelect(currentFormIndex - 1)} disabled={currentFormIndex === 0}>
                         <PiArrowLeft className="mr-2" /> Previous
                     </Button>
-                    <Button onClick={() => handleNavigate('next')}>
-                        {currentFormIndex === formSequence.length - 1 ? 'Review' : 'Next'} <PiArrowRight className="ml-2" />
+                    <Button onClick={() => handleStepSelect(currentFormIndex + 1)}>
+                        {currentFormIndex === formSequence.length - 1 ? 'Go to Review' : 'Next Form'} <PiArrowRight className="ml-2" />
                     </Button>
                 </CardFooter>
             </Card>
@@ -233,7 +243,7 @@ const EncounterPage: React.FC = () => {
                 ))}
             </CardContent>
             <CardFooter className="justify-between">
-                <Button variant="outline" onClick={() => handleNavigate('previous')}><PiArrowLeft className="mr-2" /> Back to Edit</Button>
+                <Button variant="outline" onClick={() => handleStepSelect(currentFormIndex - 1)}><PiArrowLeft className="mr-2" /> Back to Edit</Button>
                 <Button onClick={handleSubmitAndExit}>
                     <PiPaperPlaneTilt className="mr-2" /> Submit Encounter
                 </Button>
@@ -251,7 +261,7 @@ const EncounterPage: React.FC = () => {
         if (currentFormIndex === formSequence.length) {
             return renderReviewStep();
         }
-        return null; // Should not happen
+        return null;
     };
 
     return (
@@ -260,9 +270,16 @@ const EncounterPage: React.FC = () => {
                 title="Data Submission"
                 subtitle="Collect and submit clinical research data for your active project."
                 icon={PiListChecksDuotone}
-            />
+            >
+                 {isEncounterActive && (
+                    <Button variant="outline" onClick={handleSaveAndExit}>
+                        <PiArrowLeft className="mr-2" />
+                        Save & Exit
+                    </Button>
+                )}
+            </PageHeader>
             
-            {isEncounterActive && <SubmissionStepper />}
+            {isEncounterActive && <SubmissionStepper onStepSelect={handleStepSelect} />}
             {renderContent()}
             <DraftStatusBar />
         </div>
