@@ -9,7 +9,7 @@ import FormRendererV2 from '@/components/forms/FormRendererV2';
 import { PiListChecksDuotone, PiArrowLeft, PiArrowRight, PiPaperPlaneTilt, PiCheck } from 'react-icons/pi';
 import { cn } from '@/lib/utils';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEncounterStore } from '@/stores/encounterStore';
+import { useEncounterStore, Encounter } from '@/stores/encounterStore';
 import { InputField } from '@/components/ui/InputField';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { PatientInputData } from '@/types';
@@ -122,12 +122,20 @@ const EncounterPage: React.FC = () => {
     const submissionStore = useSubmissionStore();
     const encounterStore = useEncounterStore();
     const [currentStepFormData, setCurrentStepFormData] = useState<any>({});
+    const [isCompleted, setIsCompleted] = useState(false);
     
     useEffect(() => {
         if (encounterId && encounterId !== submissionStore.activeEncounterId) {
             const encounterToLoad = encounterStore.getEncounterById(encounterId);
             if (encounterToLoad) {
                 submissionStore.loadEncounter(encounterToLoad);
+                if (encounterToLoad.status === 'Completed') {
+                    setIsCompleted(true);
+                    // Force completed encounters to the review step
+                    submissionStore.setCurrentFormIndex(encounterToLoad.formSequence.length + 1);
+                } else {
+                    setIsCompleted(false);
+                }
             } else {
                 console.error("Encounter not found, redirecting...");
                 navigate(`/project/${projectId}/submissions`);
@@ -225,7 +233,9 @@ const EncounterPage: React.FC = () => {
 
     const renderReviewStep = () => (
         <Card>
-            <CardHeader><CardTitle>Review & Submit</CardTitle></CardHeader>
+            <CardHeader>
+                <CardTitle>{isCompleted ? "Completed Submission Review" : "Review & Submit"}</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-4">
                 <div>
                     <h3 className="font-semibold mb-2">Patient Information</h3>
@@ -239,8 +249,12 @@ const EncounterPage: React.FC = () => {
                 ))}
             </CardContent>
             <CardFooter className="justify-between">
-                <Button variant="outline" onClick={() => handleStepSelect(submissionStore.currentFormIndex - 1)}><PiArrowLeft className="mr-2" /> Back to Edit</Button>
-                <Button onClick={handleSubmitAndExit}><PiPaperPlaneTilt className="mr-2" /> Submit Encounter</Button>
+                <Button variant="outline" onClick={() => handleStepSelect(submissionStore.currentFormIndex - 1)} disabled={isCompleted}>
+                    <PiArrowLeft className="mr-2" /> Back to Edit
+                </Button>
+                <Button onClick={handleSubmitAndExit} disabled={isCompleted}>
+                    <PiPaperPlaneTilt className="mr-2" /> Submit Encounter
+                </Button>
             </CardFooter>
         </Card>
     );
@@ -259,10 +273,13 @@ const EncounterPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <PageHeader title="Data Submission" subtitle="Collect and submit clinical research data for your active project." icon={PiListChecksDuotone}>
-                 {submissionStore.isEncounterActive && (
+            <PageHeader title={isCompleted ? "Reviewing Submission" : "Data Submission"} subtitle="Collect and submit clinical research data for your active project." icon={PiListChecksDuotone}>
+                 {submissionStore.isEncounterActive && !isCompleted && (
                     <Button variant="outline" onClick={handleSaveAndExit}><PiArrowLeft className="mr-2" /> Save & Exit</Button>
                 )}
+                 {isCompleted && (
+                    <Button variant="outline" onClick={() => navigate(`/project/${projectId}/submissions`)}><PiArrowLeft className="mr-2" /> Back to Hub</Button>
+                 )}
             </PageHeader>
             
             <div className="sticky top-[calc(var(--header-height)+1rem)] z-20 -mx-6 px-6">

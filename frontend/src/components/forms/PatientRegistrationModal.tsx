@@ -26,6 +26,14 @@ const PatientRegistrationModal: React.FC<PatientRegistrationModalProps> = ({ isO
     setPatientData(prev => ({...prev, [id]: type === 'checkbox' ? checked : value }));
   };
 
+  // This allows checking the box with the spacebar when it's focused
+  const handleCheckboxKeyDown = (e: React.KeyboardEvent<HTMLLabelElement>) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      setPatientData(prev => ({...prev, projectConsent: !prev.projectConsent }));
+    }
+  };
+
   const canStart = patientData.initials && patientData.gender && patientData.dob && patientData.projectConsent;
 
   const handleStartClick = () => {
@@ -58,7 +66,14 @@ const PatientRegistrationModal: React.FC<PatientRegistrationModalProps> = ({ isO
           </div>
           <div className="flex items-start space-x-3 pt-4 border-t">
             <Checkbox id="projectConsent" checked={patientData.projectConsent} onChange={handleFieldChange} className="mt-1" />
-            <label htmlFor="projectConsent" className="text-sm text-muted-foreground">
+            <label 
+              htmlFor="projectConsent" 
+              className="text-sm text-muted-foreground"
+              tabIndex={0} // Make the label focusable
+              onKeyDown={handleCheckboxKeyDown}
+              role="checkbox"
+              aria-checked={patientData.projectConsent}
+            >
               I confirm that project-specific consent has been obtained from the patient or their legal guardian.
               <span className="text-destructive"> *</span>
             </label>
